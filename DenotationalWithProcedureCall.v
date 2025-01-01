@@ -12,93 +12,167 @@ Local Open Scope string.
 Local Open Scope Z.
 Local Open Scope sets.
 
+
 (** * 一个极简的指令式程序语言：SimpleWhile *)
 
 (** 在Coq中，我们就用字符串表示变量名，*)
 
 Definition var_name: Type := string.
+Definition func_name: Type := string.
+Definition args: Type := list Z.
 
-Declare Custom Entry prog_lang_entry.
+Definition state: Type := var_name -> Z.
+Definition func_state: Type := (func_name -> args -> state -> Z * state).
 
-Module Lang_SimpleWhile.
 
-(** 并且使用Coq归纳类型定义表达式和语句的语法树。*)
+Inductive binop : Type :=
+  | OOr | OAnd
+  | OLt | OLe | OGt | OGe | OEq | ONe
+  | OPlus | OMinus | OMul | ODiv | OMod.
 
-Inductive expr_int : Type :=
-  | EConst (n: Z): expr_int
-  | EVar (x: var_name): expr_int
-  | EAdd (e1 e2: expr_int): expr_int
-  | ESub (e1 e2: expr_int): expr_int
-  | EMul (e1 e2: expr_int): expr_int.
+Inductive unop : Type :=
+  | ONot | ONeg.
 
-Inductive expr_bool: Type :=
-  | ETrue: expr_bool
-  | EFalse: expr_bool
-  | ELt (e1 e2: expr_int): expr_bool
-  | EAnd (e1 e2: expr_bool): expr_bool
-  | ENot (e: expr_bool): expr_bool.
+Module Lang_While.
+
+(** 然后再定义表达式的抽象语法树。*)
+
+Inductive expr : Type :=
+  | EConst (n: Z): expr
+  | EVar (x: var_name): expr
+  | EBinop (op: binop) (e1 e2: expr): expr
+  | EUnop (op: unop) (e: expr): expr
+  | EFunc (f: func_name) (es: list expr): expr.
 
 Inductive com : Type :=
   | CSkip: com
-  | CAsgn (x: var_name) (e: expr_int): com
+  | CAsgn (x: var_name) (e: expr): com
   | CSeq (c1 c2: com): com
-  | CIf (e: expr_bool) (c1 c2: com): com
-  | CWhile (e: expr_bool) (c: com): com.
-  | CProcCall (f: proc_name) (es: list expr): com.
+  | CIf (e: expr) (c1 c2: com): com
+  | CWhile (e: expr) (c: com): com.
 
-(** 在Coq中，可以利用_[Notation]_使得这些表达式和程序语句更加易读。*)
+Definition add_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (Z.add z1 z2, s2).
 
-Definition EVar': string -> expr_int := EVar.
-Coercion EConst: Z >-> expr_int.
-Coercion EVar: var_name >-> expr_int.
-Coercion EVar': string >-> expr_int.
-Notation "[[ e ]]" := e
-  (at level 0, e custom prog_lang_entry at level 99).
-Notation "( x )" := x
-  (in custom prog_lang_entry, x custom prog_lang_entry at level 99).
-Notation "x" := x
-  (in custom prog_lang_entry at level 0, x constr at level 0).
-Notation "f x" := (f x)
-  (in custom prog_lang_entry at level 1, only parsing,
-   f custom prog_lang_entry,
-   x custom prog_lang_entry at level 0).
-Notation "x * y" := (EMul x y)
-  (in custom prog_lang_entry at level 11, left associativity).
-Notation "x + y" := (EAdd x y)
-  (in custom prog_lang_entry at level 12, left associativity).
-Notation "x - y" := (ESub x y)
-  (in custom prog_lang_entry at level 12, left associativity).
-Notation "x < y" := (ELt x y)
-  (in custom prog_lang_entry at level 13, no associativity).
-Notation "x && y" := (EAnd x y)
-  (in custom prog_lang_entry at level 14, left associativity).
-Notation "! x" := (ENot x)
-  (in custom prog_lang_entry at level 10).
-Notation "x = e" := (CAsgn x e)
-  (in custom prog_lang_entry at level 18, no associativity).
-Notation "c1 ; c2" := (CSeq c1 c2)
-  (in custom prog_lang_entry at level 20, right associativity).
-Notation "'skip'" := (CSkip)
-  (in custom prog_lang_entry at level 10).
-Notation "'if' e 'then' '{' c1 '}' 'else' '{' c2 '}'" := (CIf e c1 c2)
-  (in custom prog_lang_entry at level 19,
-   e custom prog_lang_entry at level 5,
-   c1 custom prog_lang_entry at level 99,
-   c2 custom prog_lang_entry at level 99,
-   format  "'if'  e  'then'  '{'  c1  '}'  'else'  '{'  c2  '}'").
-Notation "'while' e 'do' '{' c1 '}'" := (CWhile e c1)
-  (in custom prog_lang_entry at level 19,
-   e custom prog_lang_entry at level 5,
-   c1 custom prog_lang_entry at level 99).
+Definition sub_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (Z.sub z1 z2, s2).
 
-(** 使用_[Notation]_的效果如下：*)
+Definition mul_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (Z.mul z1 z2, s2).
 
-Check [[1 + "x"]].
-Check [["x" * ("a" + "b" + 1)]].
-Check [[1 + "x" < "x"]].
-Check [["x" < 0 && 0 < "y"]].
-Check [["x" = "x" + 1]].
-Check [[while (0 < "x") do { "x" = "x" - 1}]].
+Definition div_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (Z.div z1 z2, s2).
+
+Definition mod_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (Z.modulo z1 z2, s2).
+
+Definition or_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.eqb z1 0 then 
+        if Z.eqb z2 0 then 0 else 1 
+    else 1, s2).
+
+Definition and_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.eqb z1 0 then 0 
+    else if Z.eqb z2 0 then 0 else 1, s2).
+
+Definition lt_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.ltb z1 z2 then 1 else 0, s2).
+
+Definition le_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.leb z1 z2 then 1 else 0, s2).
+
+Definition gt_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.gtb z1 z2 then 1 else 0, s2).
+
+Definition ge_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.geb z1 z2 then 1 else 0, s2).
+
+Definition eq_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.eqb z1 z2 then 1 else 0, s2).
+
+Definition ne_sem (D1 D2: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D1 s in
+    let (z2, s2) := D2 s1 in
+    (if Z.eqb z1 z2 then 0 else 1, s2).
+    
+Definition not_sem (D: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D s in
+    (if Z.eqb z1 0 then 1 else 0, s1).
+
+Definition neg_sem (D: state -> Z * state) (s: state): Z * state :=
+    let (z1, s1) := D s in
+    (-z1, s1).
+
+Fixpoint eval_exprs (D: expr -> state -> Z * state) (es: list expr) (s: state): 
+    args * state :=
+    match es with 
+    | nil => (nil, s)
+    | cons e es' => 
+        let (z1, s1) := D e s in
+        let (zs, s2) := (eval_exprs D es' s1) in
+        (cons z1 zs, s2)
+    end.
+
+
+Definition func_sem (D: state -> Z * state) (s: state) : Z * state :=
+    D s.
+  
+Fixpoint eval_expr (fs: func_state) (e: expr) (s: state) : Z * state :=
+    match e with
+    | EConst n => (n, s)
+    | EVar X => (s X, s)
+    | EBinop op e1 e2 =>
+        match op with
+        | OPlus => add_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OMinus => sub_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OMul => mul_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | ODiv => div_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OMod => mod_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OOr => or_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OAnd => and_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OLt => lt_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OLe => le_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OGt => gt_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OGe => ge_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | OEq => eq_sem (eval_expr fs e1) (eval_expr fs e2) s
+        | ONe => ne_sem (eval_expr fs e1) (eval_expr fs e2) s
+        end
+    | EUnop op e => 
+        match op with
+        | ONot => not_sem (eval_expr fs e) s
+        | ONeg => neg_sem (eval_expr fs e) s
+        end
+    | EFunc F es => 
+        let (zs, s1) := eval_exprs (eval_expr fs) es s in
+        (fs F zs s1)
+end.
+  
+
+  
 
 
 End Lang_SimpleWhile.
