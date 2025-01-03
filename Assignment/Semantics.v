@@ -61,10 +61,10 @@ Fixpoint bind_args (Dargs: list expr_int_sem): state -> (list Z) -> state -> Pro
   | cons a l' => append_arg (bind_args l') a
   end.
 
-Definition func_sem (fs: func_list) (f: func_name) (Dargs: list expr_int_sem): expr_int_sem :=
+Definition func_sem (fn: func_name) (f: (list Z) -> expr_int_sem) (Dargs: list expr_int_sem): expr_int_sem :=
   fun (s1: state) (res: Z) (s3: state) =>
     exists (s2: state) (args: list Z) (res: Z),
-      (s1, args, s2) ∈ bind_args Dargs /\ (s2, res, s3) ∈ fs f args.
+      (s1, args, s2) ∈ bind_args Dargs /\ (s2, res, s3) ∈ f args.
 
 Definition true_sem: expr_bool_sem :=
   fun (s1: state) (res: bool) (s2: state) => res = true /\ s1 = s2.
@@ -93,6 +93,12 @@ Definition skip_sem: com_sem :=
 Definition seq_sem (D1 D2: com_sem): com_sem :=
   D1 ∘ D2.
 
+Definition asgn_sem (X: var_name) (D: expr_int_sem): com_sem :=
+  fun (s1 s3: state) =>
+    exists (s2: state) (res: Z),
+      (s1, res, s2) ∈ D /\ s3 X = res /\
+        forall Y, X <> Y -> s2 Y = s3 Y.
+
 Definition test_true (D: expr_bool_sem): com_sem :=
   fun (s1: state) (s2: state) =>
     exists (s2: state), (s1, true, s2) ∈ D.
@@ -113,5 +119,30 @@ Fixpoint boundedLB (D0: expr_bool_sem) (D1: com_sem) (n: nat): com_sem :=
 
 Definition while_sem (D0: expr_bool_sem) (D1: com_sem): com_sem :=
   ⋃ (boundedLB D0 D1).
+
+(* Fixpoint eval_expr_int (fs: func_list) (e: expr_int) {struct e}: expr_int_sem :=
+  match e with
+  | EConst n => const_sem n
+  | EVar X => var_sem X
+  | EAdd e1 e2 => add_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
+  | ESub e1 e2 => sub_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
+  | EMul e1 e2 => mul_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
+  | EFunc f args => func_sem f (fs f) (eval_expr_args fs args)
+  end
+with eval_expr_args (fs: func_list) (es: list expr_int) {struct es}: list expr_int_sem :=
+  match es with
+  | nil => nil
+  | cons e es' => cons (eval_expr_int fs e) (eval_expr_args fs es')
+  end.
+
+
+Fixpoint eval_expr_bool (fs: func_list) (e: expr_bool): expr_bool_sem :=
+  match e with
+  | ETrue => true_sem
+  | EFalse => false_sem
+  | ELt e1 e2 => lt_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
+  | EAnd e1 e2 => and_sem (eval_expr_bool fs e1) (eval_expr_bool fs e2)
+  | ENot e1 => not_sem (eval_expr_bool fs e1)
+  end. *)
 
 End Semantics_SimpleWhileFunc.

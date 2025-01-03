@@ -17,9 +17,7 @@ Local Open Scope sets.
 Definition var_name: Type := string.
 Definition func_name: Type := string.
 Definition state: Type := var_name -> Z.
-Definition func_list: Type := func_name -> list Z -> StateRelMonad.M state Z.
-
-Declare Custom Entry prog_lang_entry.
+Definition func_list: Type := func_name -> list Z -> (state -> Z -> state -> Prop).
 
 Module Lang_SimpleWhileFunc.
 
