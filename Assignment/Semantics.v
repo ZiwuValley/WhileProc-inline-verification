@@ -23,11 +23,11 @@ Import Lang_SimpleWhileFunc.
 Definition var_name: Type := string.
 Definition func_name: Type := string.
 Definition state: Type := var_name -> Z.
-Definition func_list: Type := func_name -> list Z -> StateRelMonad.M state Z.
 
 Definition expr_int_sem: Type := state -> Z -> state -> Prop.
 Definition expr_bool_sem: Type := state -> bool -> state -> Prop.
 Definition com_sem: Type := state -> state -> Prop.
+Definition func_list: Type := func_name -> list Z -> (expr_int_sem).
 
 Definition const_sem (n: Z): expr_int_sem :=
   fun (s1: state) (res: Z) (s2: state) => res = n /\ s1 = s2.
