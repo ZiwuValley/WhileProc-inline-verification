@@ -255,7 +255,7 @@ Proof.
 Qed.
 
 #[export] Instance func_sem_congr:
-  Proper (func_equiv _ _ ==> eq ==>  Sets.equiv) func_sem.
+  Proper (func_equiv _ _ ==> eq ==> Sets.equiv) func_sem.
 Proof.
   unfold Proper, respectful.
   intros f g H1 args1 args2 H2.
@@ -272,7 +272,58 @@ Proof.
     tauto.
 Qed.
 
+Definition iequiv (e1 e2: expr_int): Prop :=
+  forall fs, Sets.equiv (eval_expr_int fs e1) (eval_expr_int fs e2).
 
+#[export] Instance iequiv_equiv: Equivalence iequiv.
+Proof.
+  unfold iequiv.
+  split.
+  + unfold Reflexive. reflexivity.
+  + unfold Symmetric. symmetry. apply (H fs).
+  + unfold Transitive. intros. transitivity (eval_expr_int fs y).
+    - apply (H fs). - apply (H0 fs).
+Qed.
+
+(* Definition list_iequiv:
+  (list expr_int) -> (list expr_int) -> Prop := 
+  func_equiv iequiv. *)
+
+#[export] Instance EAdd_congr:
+  Proper (iequiv ==> iequiv ==> iequiv) EAdd.
+Proof.
+  unfold Proper, respectful, iequiv.
+  intros; simpl.
+  apply add_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed.
+
+#[export] Instance ESub_congr:
+  Proper (iequiv ==> iequiv ==> iequiv) ESub.
+Proof.
+  unfold Proper, respectful, iequiv.
+  intros; simpl.
+  apply sub_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed.
+
+#[export] Instance EMul_congr:
+  Proper (iequiv ==> iequiv ==> iequiv) EMul.
+Proof.
+  unfold Proper, respectful, iequiv.
+  intros; simpl.
+  apply mul_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed.
+
+(* #[export] Instance EFunc_congr:
+  Proper (iequiv ==> iequiv ==> iequiv) Efunc.
+Proof.
+  unfold Proper, respectful, iequiv.
+  intros; simpl.
+  apply mul_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed. *)
 
 
 

@@ -90,7 +90,7 @@ Proof.
   apply eq_equivalence.
 Qed.
 
-(* Fixpoint list_relation 
+Fixpoint list_relation 
   {A : Type}
   (R: A -> A -> Prop)
   (l1 l2: list A): Prop :=
@@ -140,6 +140,47 @@ Proof.
       ++ pose proof IHx y H2. tauto.
 Qed.
 
-Fixpoint list_set_equiv (A : Type):
+#[export] Instance list_transitive:
+  forall {A: Type} {R: A -> A -> Prop},
+  Transitive R ->
+  Transitive (list_relation R).
+Proof.
+  unfold Transitive, list_relation.
+  intros. revert H0 H1. revert y z.
+  induction x. 
+  + destruct y; destruct z; tauto.
+  + destruct y; destruct z.
+    - tauto. - tauto. - tauto.
+    - intros. destruct H0 as [H3 H4]. destruct H1 as [H5 H6].
+      split.
+      ++ apply (H a a0 a1 H3 H5).
+      ++ apply (IHx y z H4 H6).
+Qed.
+
+#[export] Instance list_equivalence:
+  forall {A: Type} {R: A -> A -> Prop},
+  Equivalence R ->
+  Equivalence (list_relation R).
+Proof.
+  intros. destruct H. split. 
+  + apply list_reflexive. tauto.
+  + apply list_symmetric. tauto.
+  + apply list_transitive. tauto.
+Qed. 
+
+Definition list_set_equiv (A : Type):
   (list (A -> Prop)) -> (list (A -> Prop)) -> Prop := 
-   *)
+  list_relation Sets.equiv.
+
+#[export] Instance list_set_equiv_equiv:
+  forall A, Equivalence (list_set_equiv A).
+Proof.
+  intros.
+  apply list_equivalence.
+  split.
+  + unfold Reflexive. reflexivity.
+  + unfold Symmetric. symmetry. tauto.
+  + unfold Transitive. intros. transitivity y. tauto. tauto.
+Qed.
+
+Definition test (a : Z) := a.

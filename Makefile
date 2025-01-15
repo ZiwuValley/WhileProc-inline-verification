@@ -38,7 +38,7 @@ PL_FILE_NAMES = \
 PL_FILES=$(PL_FILE_NAMES:%.v=$(PL_DIR)/%.v)
 
 ASSIGNMENT_FILE_NAMES = \
-	Test.v Test1.v FuncEquiv.v Syntax.v Semantics.v
+	FuncEquiv.v Test.v Test1.v Syntax.v Semantics.v
 
 ASSIGNMENT_FILES=$(ASSIGNMENT_FILE_NAMES:%.v=$(ASSIGNMENT_DIR)/%.v)
 
