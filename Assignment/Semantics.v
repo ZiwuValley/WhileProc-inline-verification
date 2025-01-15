@@ -120,19 +120,19 @@ Fixpoint boundedLB (D0: expr_bool_sem) (D1: com_sem) (n: nat): com_sem :=
 Definition while_sem (D0: expr_bool_sem) (D1: com_sem): com_sem :=
   ⋃ (boundedLB D0 D1).
 
-(* Fixpoint eval_expr_int (fs: func_list) (e: expr_int) {struct e}: expr_int_sem :=
+Fixpoint eval_expr_int (e: expr_int): func_list -> expr_int_sem :=
   match e with
-  | EConst n => const_sem n
-  | EVar X => var_sem X
-  | EAdd e1 e2 => add_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
-  | ESub e1 e2 => sub_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
-  | EMul e1 e2 => mul_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
-  | EFunc f args => func_sem f (fs f) (eval_expr_args fs args)
+  | EConst n => fun (fs: func_list) => const_sem n
+  | EVar X => fun (fs: func_list) => var_sem X
+  | EAdd e1 e2 => fun (fs: func_list) => add_sem (eval_expr_int e1 fs) (eval_expr_int e2 fs)
+  | ESub e1 e2 => fun (fs: func_list) => sub_sem (eval_expr_int e1 fs) (eval_expr_int e2 fs)
+  | EMul e1 e2 => fun (fs: func_list) => mul_sem (eval_expr_int e1 fs) (eval_expr_int e2 fs)
+  | EFunc f args => fun (fs: func_list) => func_sem f (fs f) (eval_expr_args args fs)
   end
-with eval_expr_args (fs: func_list) (es: list expr_int) {struct es}: list expr_int_sem :=
+with eval_expr_args (es: list expr_int): func_list -> list expr_int_sem :=
   match es with
-  | nil => nil
-  | cons e es' => cons (eval_expr_int fs e) (eval_expr_args fs es')
+  | nil => fun (fs: func_list) => nil
+  | cons e es' => fun (fs: func_list) => cons (eval_expr_int e fs) (eval_expr_args es' fs)
   end.
 
 
@@ -143,6 +143,6 @@ Fixpoint eval_expr_bool (fs: func_list) (e: expr_bool): expr_bool_sem :=
   | ELt e1 e2 => lt_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
   | EAnd e1 e2 => and_sem (eval_expr_bool fs e1) (eval_expr_bool fs e2)
   | ENot e1 => not_sem (eval_expr_bool fs e1)
-  end. *)
+  end. 
 
 End Semantics_SimpleWhileFunc.
