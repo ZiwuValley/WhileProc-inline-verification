@@ -62,7 +62,7 @@ Fixpoint bind_args (Dargs: list expr_int_sem): state -> (list Z) -> state -> Pro
   | cons a l' => append_arg (bind_args l') a
   end.
 
-Definition func_sem (fn: func_name) (f: (list Z) -> expr_int_sem) (Dargs: list expr_int_sem): expr_int_sem :=
+Definition func_sem (f: (list Z) -> expr_int_sem) (Dargs: list expr_int_sem): expr_int_sem :=
   fun (s1: state) (res: Z) (s3: state) =>
     exists (s2: state) (args: list Z) (res: Z),
       (s1, args, s2) ∈ bind_args Dargs /\ (s2, res, s3) ∈ f args.
@@ -135,7 +135,7 @@ Fixpoint eval_expr_int (fs: func_list) (e: expr_int) {struct e}: expr_int_sem :=
   | EAdd e1 e2 => add_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
   | ESub e1 e2 => sub_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
   | EMul e1 e2 => mul_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
-  | EFunc f args => func_sem f (fs f) (map (eval_expr_int fs) args)
+  | EFunc f args => func_sem (fs f) (map (eval_expr_int fs) args)
   (* end
 with eval_expr_args (fs: func_list) (es: list expr_int) {struct es}: list expr_int_sem :=
   match es with
@@ -166,6 +166,64 @@ Fixpoint eval_com (fs: func_list) (c: com): com_sem :=
   | CWhile e c1 =>
     while_sem (eval_expr_bool fs e) (eval_com fs c1)
   end.
+
+#[export] Instance add_sem_congr:
+  Proper (Sets.equiv ==>  Sets.equiv ==>  Sets.equiv) add_sem.
+Proof.
+  unfold Proper, respectful.
+  intros D11 D12 H1 D21 D22 H2.
+  unfold add_sem.
+  intros s1 res s2.
+  split. 
+  + intros. destruct H as [a H]. destruct H as [s3 H].
+    exists a. exists s3.
+    rewrite <- H1, <- H2.
+    tauto.
+  + intros. destruct H as [a H]. destruct H as [s3 H].
+    exists a. exists s3.
+    rewrite H1, H2.
+    tauto.
+Qed.
+
+#[export] Instance sub_sem_congr:
+  Proper (Sets.equiv ==>  Sets.equiv ==>  Sets.equiv) sub_sem.
+Proof.
+  unfold Proper, respectful.
+  intros D11 D12 H1 D21 D22 H2.
+  unfold sub_sem.
+  intros s1 res s2.
+  split. 
+  + intros. destruct H as [a H]. destruct H as [s3 H].
+    exists a. exists s3.
+    rewrite <- H1, <- H2.
+    tauto.
+  + intros. destruct H as [a H]. destruct H as [s3 H].
+    exists a. exists s3.
+    rewrite H1, H2.
+    tauto.
+Qed.
+
+#[export] Instance mul_sem_congr:
+  Proper (Sets.equiv ==>  Sets.equiv ==>  Sets.equiv) mul_sem.
+Proof.
+  unfold Proper, respectful.
+  intros D11 D12 H1 D21 D22 H2.
+  unfold mul_sem.
+  intros s1 res s2.
+  split. 
+  + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
+    exists a. exists s3. exists b.
+    rewrite <- H1, <- H2.
+    tauto.
+  + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
+    exists a. exists s3. exists b.
+    rewrite H1, H2.
+    tauto.
+Qed
+
+
+
+
 
 
 End Semantics_SimpleWhileFunc.
