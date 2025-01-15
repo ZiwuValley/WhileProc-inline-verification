@@ -9,6 +9,7 @@ Require Import PL.InductiveType.
 Require Import PL.RecurProp.
 Require Import PL.Monad2.
 Require Import Assignment.Syntax.
+Require Import Assignment.FuncEquiv.
 Require Import Coq.Lists.List.
 Local Open Scope string.
 Local Open Scope Z.
@@ -219,7 +220,57 @@ Proof.
     exists a. exists s3. exists b.
     rewrite H1, H2.
     tauto.
-Qed
+Qed.
+
+#[export] Instance append_arg_congr:
+  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv) append_arg.
+Proof.
+  unfold Proper, respectful.
+  intros Dargs1 Dargs2 H1 D1 D2 H2.
+  unfold append_arg.
+  intros s1 res s2.
+  split.
+  + intros. destruct H as [s3 H]. destruct H as [args H]. destruct H as [arg H].
+    exists s3. exists args. exists arg.
+    rewrite <- H1, <- H2. tauto.
+  + intros. destruct H as [s3 H]. destruct H as [args H]. destruct H as [arg H].
+    exists s3. exists args. exists arg.
+    rewrite H1, H2. tauto.
+Qed.
+
+#[export] Instance bind_args_congr:
+  Proper (eq ==> Sets.equiv) bind_args.
+Proof.
+  unfold Proper, respectful.
+  intros Dargs1 Dargs2 H1.
+  unfold bind_args.
+  split. revert a a0 a1.
+  intros s1 l s2.
+  + intros. revert H1. revert Dargs2. induction Dargs1.
+    - intros Dargs2 H1. rewrite <- H1. tauto.
+    - intros Dargs2 H1. rewrite <- H1. tauto.
+  + intros. revert H1. revert Dargs1. induction Dargs2.
+    - intros Dargs1 H1. rewrite H1. tauto.
+    - intros Dargs1 H1. rewrite H1. tauto.
+Qed.
+
+#[export] Instance func_sem_congr:
+  Proper (func_equiv _ _ ==> eq ==>  Sets.equiv) func_sem.
+Proof.
+  unfold Proper, respectful.
+  intros f g H1 args1 args2 H2.
+  unfold func_sem.
+  intros s1 res s2.
+  split. 
+  + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
+    exists a. exists s3. exists b.
+    rewrite <- H1, <- H2.
+    tauto.
+  + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
+    exists a. exists s3. exists b.
+    rewrite H1, H2.
+    tauto.
+Qed.
 
 
 
