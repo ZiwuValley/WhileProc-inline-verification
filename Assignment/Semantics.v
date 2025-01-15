@@ -153,4 +153,19 @@ Fixpoint eval_expr_bool (fs: func_list) (e: expr_bool): expr_bool_sem :=
   | ENot e1 => not_sem (eval_expr_bool fs e1)
   end.
 
+Fixpoint eval_com (fs: func_list) (c: com): com_sem :=
+  match c with
+  | CSkip =>
+    skip_sem
+  | CAsgn X e =>
+    asgn_sem X (eval_expr_int fs e)
+  | CSeq c1 c2 =>
+    seq_sem (eval_com fs c1) (eval_com fs c2)
+  | CIf e c1 c2 =>
+    if_sem (eval_expr_bool fs e) (eval_com fs c1) (eval_com fs c2)
+  | CWhile e c1 =>
+    while_sem (eval_expr_bool fs e) (eval_com fs c1)
+  end.
+
+
 End Semantics_SimpleWhileFunc.
