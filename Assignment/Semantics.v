@@ -9,6 +9,7 @@ Require Import PL.InductiveType.
 Require Import PL.RecurProp.
 Require Import PL.Monad2.
 Require Import Assignment.Syntax.
+Require Import Coq.Lists.List.
 Local Open Scope string.
 Local Open Scope Z.
 Local Open Scope sets.
@@ -120,19 +121,26 @@ Fixpoint boundedLB (D0: expr_bool_sem) (D1: com_sem) (n: nat): com_sem :=
 Definition while_sem (D0: expr_bool_sem) (D1: com_sem): com_sem :=
   ⋃ (boundedLB D0 D1).
 
-(* Fixpoint eval_expr_int (fs: func_list) (e: expr_int) {struct e}: expr_int_sem :=
+(* Fixpoint eval_expr_args (fs: func_list) (es: list expr_int) {struct es}: list expr_int_sem :=
+    match es with
+    | nil => nil
+    | cons e es' => cons (eval_expr_int fs e) (eval_expr_args fs es')
+    end. *)
+
+
+Fixpoint eval_expr_int (fs: func_list) (e: expr_int) {struct e}: expr_int_sem :=
   match e with
   | EConst n => const_sem n
   | EVar X => var_sem X
   | EAdd e1 e2 => add_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
   | ESub e1 e2 => sub_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
   | EMul e1 e2 => mul_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
-  | EFunc f args => func_sem f (fs f) (eval_expr_args fs args)
-  end
+  | EFunc f args => func_sem f (fs f) (map (eval_expr_int fs) args)
+  (* end
 with eval_expr_args (fs: func_list) (es: list expr_int) {struct es}: list expr_int_sem :=
   match es with
   | nil => nil
-  | cons e es' => cons (eval_expr_int fs e) (eval_expr_args fs es')
+  | cons e es' => cons (eval_expr_int fs e) (eval_expr_args fs es') *)
   end.
 
 
@@ -143,6 +151,6 @@ Fixpoint eval_expr_bool (fs: func_list) (e: expr_bool): expr_bool_sem :=
   | ELt e1 e2 => lt_sem (eval_expr_int fs e1) (eval_expr_int fs e2)
   | EAnd e1 e2 => and_sem (eval_expr_bool fs e1) (eval_expr_bool fs e2)
   | ENot e1 => not_sem (eval_expr_bool fs e1)
-  end. *)
+  end.
 
 End Semantics_SimpleWhileFunc.
