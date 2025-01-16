@@ -303,10 +303,10 @@ Proof.
     - unfold list_expr_int_sem_equiv, list_relation in H1. tauto.
     - unfold list_expr_int_sem_equiv, list_relation in H1. tauto.
     - unfold list_expr_int_sem_equiv, list_relation in H1. destruct H1 as [? ?].
-        specialize (IHDargs2 Dargs1 H0).
-        assert (list_expr_int_sem_equiv Dargs1 Dargs2). tauto. clear H0.
-        fold bind_args in IHDargs2. fold bind_args.
-        rewrite <- H. rewrite IHDargs2. reflexivity.
+      specialize (IHDargs2 Dargs1 H0).
+      assert (list_expr_int_sem_equiv Dargs1 Dargs2). tauto. clear H0.
+      fold bind_args in IHDargs2. fold bind_args.
+      rewrite <- H. rewrite IHDargs2. reflexivity.
 Qed.
 
 #[export] Instance func_sem_congr:

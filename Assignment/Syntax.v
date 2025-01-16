@@ -36,6 +36,14 @@ Inductive expr_bool: Type :=
   | EAnd (e1 e2: expr_bool): expr_bool
   | ENot (e: expr_bool): expr_bool.
 
+Inductive expr_func : Type :=
+  | EFConst (n: Z): expr_func
+  | EFVar (x: var_name): expr_func
+  | EFArgs (i : Z): expr_func
+  | EFAdd (e1 e2: expr_func): expr_func
+  | EFSub (e1 e2: expr_func): expr_func
+  | EFMul (e1 e2: expr_func): expr_func.
+
 Inductive com : Type :=
   | CSkip: com
   | CAsgn (x: var_name) (e: expr_int): com
