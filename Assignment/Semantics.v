@@ -240,40 +240,77 @@ Proof.
     tauto.
 Qed.
 
-#[export] Instance append_arg_congr:
-  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv) append_arg.
+#[export] Instance append_arg_mono:
+  Proper (Sets.included ==> Sets.equiv ==> Sets.included) append_arg.
 Proof.
   unfold Proper, respectful.
   intros Dargs1 Dargs2 H1 D1 D2 H2.
   unfold append_arg.
   intros s1 res s2.
-  split.
-  + intros. destruct H as [s3 H]. destruct H as [args H]. destruct H as [arg H].
-    exists s3. exists args. exists arg.
-    rewrite <- H1, <- H2. tauto.
-  + intros. destruct H as [s3 H]. destruct H as [args H]. destruct H as [arg H].
-    exists s3. exists args. exists arg.
-    rewrite H1, H2. tauto.
+  intros. sets_unfold.
+  intros. 
+  destruct H as [s3 H]. destruct H as [args H]. destruct H as [arg H].
+  exists s3. exists args. exists arg.
+  sets_unfold in H2. specialize (H2 s1 arg s3).
+  destruct H as (H3 & H4 & H5).
+  apply H2 in H5.
+  sets_unfold in H1. specialize (H1 s3 args s2).
+  apply H1 in H4.
+  tauto.
 Qed.
 
+Definition list_expr_int_sem_equiv:
+  (list expr_int_sem) -> (list expr_int_sem) -> Prop := 
+  list_relation Sets.equiv.
+
+#[export] Instance list_expr_int_sem_equiv_equiv:
+  Equivalence list_expr_int_sem_equiv.
+Proof.
+  unfold list_expr_int_sem_equiv.
+  apply list_equivalence.
+  pose proof Sets_equiv_equiv.
+  destruct H.
+  split.
+  + unfold Reflexive. reflexivity.
+  + unfold Symmetric. symmetry. tauto.
+  + unfold Transitive. intros. transitivity y. tauto. tauto.
+Qed.
+
+(* Lemma func_to_set_3types (A B C: Type):
+  forall (f: A -> B -> C -> Prop) (x: A) (y: B) (z: C), (f x y z) = ((x, y, z) ∈ f).
+Proof.
+  intros. sets_unfold. tauto.
+Qed. *)
+
 #[export] Instance bind_args_congr:
-  Proper (eq ==> Sets.equiv) bind_args.
+  Proper (list_expr_int_sem_equiv ==> Sets.equiv) bind_args.
 Proof.
   unfold Proper, respectful.
   intros Dargs1 Dargs2 H1.
   unfold bind_args.
-  split. revert a a0 a1.
-  intros s1 l s2.
-  + intros. revert H1. revert Dargs2. induction Dargs1.
-    - intros Dargs2 H1. rewrite <- H1. tauto.
-    - intros Dargs2 H1. rewrite <- H1. tauto.
-  + intros. revert H1. revert Dargs1. induction Dargs2.
-    - intros Dargs1 H1. rewrite H1. tauto.
-    - intros Dargs1 H1. rewrite H1. tauto.
+  apply Sets_equiv_Sets_included. split.
+  + intros. revert H1. revert Dargs2. induction Dargs1; intros Dargs2 H1; destruct Dargs2.
+    - reflexivity.
+    - unfold list_expr_int_sem_equiv, list_relation in H1. tauto.
+    - unfold list_expr_int_sem_equiv, list_relation in H1. tauto.
+    - unfold list_expr_int_sem_equiv, list_relation in H1. destruct H1 as [? ?].
+      specialize (IHDargs1 Dargs2 H0).
+      assert (list_expr_int_sem_equiv Dargs1 Dargs2). tauto. clear H0.
+      fold bind_args in IHDargs1. fold bind_args.
+      rewrite <- H. rewrite IHDargs1. reflexivity.
+  + intros. revert H1. revert Dargs1. induction Dargs2; intros Dargs1 H1; destruct Dargs1.
+    - reflexivity.
+    - unfold list_expr_int_sem_equiv, list_relation in H1. tauto.
+    - unfold list_expr_int_sem_equiv, list_relation in H1. tauto.
+    - unfold list_expr_int_sem_equiv, list_relation in H1. destruct H1 as [? ?].
+        specialize (IHDargs2 Dargs1 H0).
+        assert (list_expr_int_sem_equiv Dargs1 Dargs2). tauto. clear H0.
+        fold bind_args in IHDargs2. fold bind_args.
+        rewrite <- H. rewrite IHDargs2. reflexivity.
 Qed.
 
 #[export] Instance func_sem_congr:
-  Proper (func_equiv _ _ ==> eq ==> Sets.equiv) func_sem.
+  Proper (func_equiv _ _ ==> list_expr_int_sem_equiv ==> Sets.equiv) func_sem.
 Proof.
   unfold Proper, respectful.
   intros f g H1 args1 args2 H2.
@@ -437,6 +474,7 @@ Qed.
 
 Definition cequiv (e1 e2: com): Prop :=
   forall fs, Sets.equiv (eval_com fs e1) (eval_com fs e2).
+
 #[export] Instance cequiv_equiv: Equivalence cequiv.
 Proof.
   unfold cequiv.
@@ -446,10 +484,6 @@ Proof.
   + unfold Transitive. intros. transitivity (eval_com fs y).
     - apply (H fs). - apply (H0 fs).
 Qed.
-
-(* Definition list_iequiv:
-  (list expr_int) -> (list expr_int) -> Prop := 
-  func_equiv iequiv. *)
 
 #[export] Instance EConst_congr:
   Proper (eq ==> iequiv) EConst.
@@ -559,16 +593,67 @@ Proof.
   + apply (H fs). + apply (H0 fs).
 Qed.
 
-(* #[export] Instance EFunc_congr:
-  Proper (iequiv ==> iequiv ==> iequiv) Efunc.
+Definition list_iequiv:
+  (list expr_int) -> (list expr_int) -> Prop := 
+  list_relation iequiv.
+
+#[export] Instance list_iequiv_equiv:
+  Equivalence list_iequiv.
+Proof.
+  unfold list_iequiv.
+  apply list_equivalence.
+  split.
+  + unfold Reflexive. reflexivity.
+  + unfold Symmetric. symmetry. tauto.
+  + unfold Transitive. intros. transitivity y. tauto. tauto.
+Qed.
+
+Definition func_iequiv_sequiv:
+  (expr_int -> expr_int_sem) -> (expr_int -> expr_int_sem) -> Prop :=
+  fun f g =>
+  exists (fs1 fs2: func_list),
+  f = (eval_expr_int fs1) /\ g = (eval_expr_int fs2) /\
+  forall a b: expr_int, iequiv a b -> Sets.equiv (f a) (g b).
+
+#[export] Instance map_func_congr:
+  Proper (func_iequiv_sequiv ==> list_iequiv ==> list_expr_int_sem_equiv) 
+    (@map expr_int expr_int_sem).
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold list_expr_int_sem_equiv.
+  unfold list_relation.
+  revert H0. revert y0.
+  induction x0; destruct y0; intros.
+  + unfold map. auto.
+  + unfold list_iequiv in H0. unfold list_relation in H0. tauto.
+  + unfold list_iequiv in H0. unfold list_relation in H0. tauto.
+  + unfold list_iequiv in H0. unfold list_relation in H0. destruct H0 as [H1 H2]. 
+    assert (list_iequiv x0 y0). tauto. clear H2. 
+    specialize (IHx0 y0 H0).
+    unfold map. split. 
+    - unfold func_iequiv_sequiv in H. destruct H as [fs1 H]. destruct H as [fs2 H].
+      destruct H as (H2 & H3 & H4).
+      specialize (H4 a e H1). tauto.
+    - apply IHx0.
+Qed.
+  
+
+#[export] Instance EFunc_congr:
+  Proper (eq ==> list_iequiv ==> iequiv) EFunc.
 Proof.
   unfold Proper, respectful, iequiv.
   intros; simpl.
-  apply mul_sem_congr.
-  + apply (H fs). + apply (H0 fs).
-Qed. *)
-
-
-
+  apply func_sem_congr.
+  + rewrite H. reflexivity.
+  + apply map_func_congr.
+    - unfold func_iequiv_sequiv. 
+      exists fs. exists fs. 
+      split. reflexivity.
+      split. reflexivity.
+      unfold iequiv. intros.
+      apply H1.
+    - apply H0.
+Qed.
 
 End Semantics_SimpleWhileFunc.

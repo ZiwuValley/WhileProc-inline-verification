@@ -183,4 +183,17 @@ Proof.
   + unfold Transitive. intros. transitivity y. tauto. tauto.
 Qed.
 
-Definition test (a : Z) := a.
+Definition func_2_relation
+  {A: Type} {B: Type}
+  (R1: A -> A -> Prop)
+  (R2: B -> B -> Prop)
+  (f g: A -> B): Prop :=
+  forall a b: A, R1 a b -> R2 (f a) (g b).
+
+#[export] Instance func_2_reflexive:
+  forall (A B: Type) (R1: A -> A -> Prop) (R2: B -> B -> Prop), 
+    Reflexive R1 -> Reflexive R2 -> 
+    Reflexive (func_2_relation R1 R2).
+Proof.
+  unfold Reflexive, func_2_relation. 
+  intros. 
