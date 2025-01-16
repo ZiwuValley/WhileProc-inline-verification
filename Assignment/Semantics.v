@@ -615,6 +615,18 @@ Definition func_iequiv_sequiv:
   f = (eval_expr_int fs1) /\ g = (eval_expr_int fs2) /\
   forall a b: expr_int, iequiv a b -> Sets.equiv (f a) (g b).
 
+Lemma func_iequiv_sequiv_reflexive:
+  forall fs, func_iequiv_sequiv (eval_expr_int fs) (eval_expr_int fs).
+Proof.
+  intros.
+  unfold func_iequiv_sequiv. 
+  exists fs. exists fs. 
+  split. reflexivity.
+  split. reflexivity.
+  unfold iequiv. intros.
+  apply H.
+Qed.
+
 #[export] Instance map_func_congr:
   Proper (func_iequiv_sequiv ==> list_iequiv ==> list_expr_int_sem_equiv) 
     (@map expr_int expr_int_sem).
@@ -647,12 +659,7 @@ Proof.
   apply func_sem_congr.
   + rewrite H. reflexivity.
   + apply map_func_congr.
-    - unfold func_iequiv_sequiv. 
-      exists fs. exists fs. 
-      split. reflexivity.
-      split. reflexivity.
-      unfold iequiv. intros.
-      apply H1.
+    - apply func_iequiv_sequiv_reflexive. 
     - apply H0.
 Qed.
 
