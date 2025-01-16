@@ -102,12 +102,10 @@ Definition asgn_sem (X: var_name) (D: expr_int_sem): com_sem :=
         forall Y, X <> Y -> s2 Y = s3 Y.
 
 Definition test_true (D: expr_bool_sem): com_sem :=
-  fun (s1: state) (s2: state) =>
-    exists (s2: state), (s1, true, s2) ∈ D.
+  fun (s1: state) (s2: state) => (s1, true, s2) ∈ D.
 
 Definition test_false (D: expr_bool_sem): com_sem :=
-  fun (s1: state) (s2: state) =>
-    exists (s2: state), (s1, false, s2) ∈ D.  
+  fun (s1: state) (s2: state) => (s1, false, s2) ∈ D.  
 
 Definition if_sem (D0: expr_bool_sem) (D1 D2: com_sem): com_sem :=
   (test_true D0 ∘ D1) ∪ (test_false D0 ∘ D2).
@@ -167,6 +165,26 @@ Fixpoint eval_com (fs: func_list) (c: com): com_sem :=
   | CWhile e c1 =>
     while_sem (eval_expr_bool fs e) (eval_com fs c1)
   end.
+
+#[export] Instance const_sem_congr:
+  Proper (eq ==> Sets.equiv) const_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold const_sem.
+  rewrite H.
+  reflexivity.
+Qed.
+
+#[export] Instance var_sem_congr:
+  Proper (eq ==> Sets.equiv) var_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold var_sem.
+  rewrite H.
+  reflexivity.
+Qed.
 
 #[export] Instance add_sem_congr:
   Proper (Sets.equiv ==>  Sets.equiv ==>  Sets.equiv) add_sem.
@@ -272,6 +290,125 @@ Proof.
     tauto.
 Qed.
 
+#[export] Instance lt_sem_congr:
+  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv) lt_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold lt_sem.
+  intros s1 res s3.
+  split; intros;
+  destruct H1 as [lhs H1];
+  destruct H1 as [rhs H1];
+  destruct H1 as [s2 H1].
+  + rewrite H, H0 in H1.
+    exists lhs. exists rhs. exists s2.
+    tauto.
+  + rewrite <- H, <- H0 in H1.
+    exists lhs. exists rhs. exists s2.
+    tauto.
+Qed.
+
+#[export] Instance and_sem_congr:
+  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv) and_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold and_sem.
+  intros s1 res s3.
+  split; intros.
+  + destruct H1 as [? | ?].
+    - rewrite H in H1.
+      left. tauto.
+    - destruct H1 as [s2 H1].
+      rewrite H, H0 in H1.
+      right. exists s2. tauto.
+  + destruct H1 as [? | ?].
+    - rewrite <- H in H1.
+      left. tauto.
+    - destruct H1 as [s2 H1].
+      rewrite <- H, <- H0 in H1.
+      right. exists s2. tauto.
+Qed.
+
+#[export] Instance not_sem_congr:
+  Proper (Sets.equiv ==> Sets.equiv) not_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold not_sem.
+  intros s1 res s2.
+  rewrite H.
+  reflexivity.
+Qed.
+
+#[export] Instance seq_sem_congr:
+  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv) seq_sem.
+Proof. apply Rels_concat_congr. Qed.
+
+#[export] Instance asgn_sem_congr:
+  Proper (eq ==> Sets.equiv ==> Sets.equiv) asgn_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold asgn_sem.
+  intros s1 s3.
+  split; intros;
+  destruct H1 as [s2 H1];
+  destruct H1 as [res H1].
+  + rewrite H, H0 in H1.
+    exists s2. exists res.
+    tauto.
+  + exists s2. exists res.
+    rewrite H, H0.
+    tauto.
+Qed.
+
+#[export] Instance test_true_congr:
+  Proper (Sets.equiv ==> Sets.equiv) test_true.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold test_true.
+  intros s1 s2.
+  rewrite H.
+  reflexivity.
+Qed.
+
+#[export] Instance test_false_congr:
+  Proper (Sets.equiv ==> Sets.equiv) test_false.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold test_false.
+  intros s1 s2.
+  rewrite H.
+  reflexivity.
+Qed.
+
+#[export] Instance if_sem_congr:
+  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv ==> Sets.equiv) if_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold if_sem.
+  rewrite H, H0, H1.
+  reflexivity.
+Qed.
+
+#[export] Instance while_sem_congr:
+  Proper (Sets.equiv ==> Sets.equiv ==> Sets.equiv) while_sem.
+Proof.
+  unfold Proper, respectful.
+  intros.
+  unfold while_sem.
+  apply Sets_indexed_union_congr.
+  intros n.
+  induction n; simpl. 
+  + reflexivity.
+  + rewrite IHn, H, H0. reflexivity.
+Qed.
+
 Definition iequiv (e1 e2: expr_int): Prop :=
   forall fs, Sets.equiv (eval_expr_int fs e1) (eval_expr_int fs e2).
 
@@ -285,9 +422,52 @@ Proof.
     - apply (H fs). - apply (H0 fs).
 Qed.
 
+Definition bequiv (e1 e2: expr_bool): Prop :=
+  forall fs, Sets.equiv (eval_expr_bool fs e1) (eval_expr_bool fs e2).
+
+#[export] Instance bequiv_equiv: Equivalence bequiv.
+Proof.
+  unfold bequiv.
+  split.
+  + unfold Reflexive. reflexivity.
+  + unfold Symmetric. symmetry. apply (H fs).
+  + unfold Transitive. intros. transitivity (eval_expr_bool fs y).
+    - apply (H fs). - apply (H0 fs).
+Qed.
+
+Definition cequiv (e1 e2: com): Prop :=
+  forall fs, Sets.equiv (eval_com fs e1) (eval_com fs e2).
+#[export] Instance cequiv_equiv: Equivalence cequiv.
+Proof.
+  unfold cequiv.
+  split.
+  + unfold Reflexive. reflexivity.
+  + unfold Symmetric. symmetry. apply (H fs).
+  + unfold Transitive. intros. transitivity (eval_com fs y).
+    - apply (H fs). - apply (H0 fs).
+Qed.
+
 (* Definition list_iequiv:
   (list expr_int) -> (list expr_int) -> Prop := 
   func_equiv iequiv. *)
+
+#[export] Instance EConst_congr:
+  Proper (eq ==> iequiv) EConst.
+Proof.
+  unfold Proper, respectful, iequiv.
+  intros.
+  apply const_sem_congr.
+  tauto.
+Qed.
+
+#[export] Instance EVar_congr:
+  Proper (eq ==> iequiv) EVar.
+Proof.
+  unfold Proper, respectful, iequiv.
+  intros.
+  apply var_sem_congr.
+  tauto.
+Qed.
 
 #[export] Instance EAdd_congr:
   Proper (iequiv ==> iequiv ==> iequiv) EAdd.
@@ -313,6 +493,69 @@ Proof.
   unfold Proper, respectful, iequiv.
   intros; simpl.
   apply mul_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed.
+
+#[export] Instance ELt_congr:
+  Proper (iequiv ==> iequiv ==> bequiv) ELt.
+Proof.
+  unfold Proper, respectful, iequiv, bequiv.
+  intros; simpl.
+  apply lt_sem_congr.
+  + apply (H fs). + apply (H0 fs). 
+Qed.
+
+#[export] Instance EAnd_congr:
+  Proper (bequiv ==> bequiv ==> bequiv) EAnd.
+Proof.
+  unfold Proper, respectful, bequiv.
+  intros; simpl.
+  apply and_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed.
+
+#[export] Instance ENot_congr:
+  Proper (bequiv ==> bequiv) ENot.
+Proof.
+  unfold Proper, respectful, bequiv.
+  intros; simpl.
+  apply not_sem_congr.
+  apply (H fs).
+Qed.
+
+#[export] Instance CAsgn_congr:
+  Proper (eq ==> iequiv ==> cequiv) CAsgn.
+Proof.
+  unfold Proper, respectful, iequiv, cequiv.
+  intros; simpl.
+  apply asgn_sem_congr.
+  + tauto. + apply (H0 fs).
+Qed.
+
+#[export] Instance CSeq_congr:
+  Proper (cequiv ==> cequiv ==> cequiv) CSeq.
+Proof.
+  unfold Proper, respectful, cequiv.
+  intros; simpl.
+  apply seq_sem_congr.
+  + apply (H fs). + apply (H0 fs).
+Qed.
+
+#[export] Instance CIf_congr:
+  Proper (bequiv ==> cequiv ==> cequiv ==> cequiv) CIf.
+Proof.
+  unfold Proper, respectful, bequiv, cequiv.
+  intros; simpl.
+  apply if_sem_congr.
+  + apply (H fs). + apply (H0 fs). + apply (H1 fs).
+Qed.
+
+#[export] Instance CWhile_congr:
+  Proper (bequiv ==> cequiv ==> cequiv) CWhile.
+Proof.
+  unfold Proper, respectful, bequiv, cequiv.
+  intros; simpl.
+  apply while_sem_congr.
   + apply (H fs). + apply (H0 fs).
 Qed.
 
