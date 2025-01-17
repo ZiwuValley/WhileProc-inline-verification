@@ -65,7 +65,7 @@ Fixpoint bind_args (Dargs: list expr_int_sem): state -> (list Z) -> state -> Pro
 
 Definition func_sem (f: (list Z) -> expr_int_sem) (Dargs: list expr_int_sem): expr_int_sem :=
   fun (s1: state) (res: Z) (s3: state) =>
-    exists (s2: state) (args: list Z) (res: Z),
+    exists (s2: state) (args: list Z),
       (s1, args, s2) ∈ bind_args Dargs /\ (s2, res, s3) ∈ f args.
 
 Definition true_sem: expr_bool_sem :=
@@ -318,11 +318,11 @@ Proof.
   intros s1 res s2.
   split. 
   + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
-    exists a. exists s3. exists b.
+    exists a. exists s3.
     rewrite <- H1, <- H2.
     tauto.
   + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
-    exists a. exists s3. exists b.
+    exists a. exists s3.
     rewrite H1, H2.
     tauto.
 Qed.

@@ -126,13 +126,45 @@ Proof.
   intros.
   unfold eval_expr_func.
   unfold func_sem.
-  split; revert a a0 a1.
-  + intros s1 res s2. intros. destruct H0 as [s3 H0]. destruct H0 as [args0 H0]. destruct H0 as [res1 H0].
+  intros.
+  split. revert a a0 a1. 
+  + intros s1 res s2. intros.
+    destruct H0 as [s3 H0]. destruct H0 as [args0 H0].
     destruct H0 as [? ?].
-    pose proof (bind_args_unchanged fs args H).
-    apply H2 in H0. rewrite H0.
-    sets_unfold in H1.
-    unfold const_sem. unfold const_sem in H1.
+    apply bind_args_unchanged in H0.
+    - rewrite <- H0 in H1.
+      sets_unfold in H1.
+      apply H1.
+    - apply H.
+  + intros.
+    sets_unfold.
+    exists a.
+    induction args.
+    - unfold map, ret.
+      unfold bind_args, ret.
+      exists nil.
+      tauto.
+    - unfold list_state_unchanged in H.
+      destruct H as [? ?].
+      change ((fix list_state_unchanged
+            (fs : func_list) (args : list expr_int) {struct args} : Prop :=
+            match args with
+            | nil => True
+            | e :: args' => state_unchanged fs e /\ list_state_unchanged fs args'
+            end) fs args) with (list_state_unchanged fs args) in H1.
+      specialize (IHargs H1).
+      destruct IHargs as [? ?]; destruct H2 as (? & ?).
+      Check map (eval_expr_int fs) (a2 :: args).
+      Check bind_args (map (eval_expr_int fs) (a2 :: args)).
+
+      unfold bind_args, map.
+      fold bind_args.
+      change (((fix map (l : list expr_int) :
+          list expr_int_sem :=
+        match l with
+        | nil => nil
+        | a3 :: t => eval_expr_int fs a3 :: map t
+        end) args)) with (map (eval_expr_int fs) args) in H0.
 
 
 
