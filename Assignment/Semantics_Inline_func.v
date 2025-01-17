@@ -154,17 +154,43 @@ Proof.
             end) fs args) with (list_state_unchanged fs args) in H1.
       specialize (IHargs H1).
       destruct IHargs as [? ?]; destruct H2 as (? & ?).
-      Check map (eval_expr_int fs) (a2 :: args).
-      Check bind_args (map (eval_expr_int fs) (a2 :: args)).
-
       unfold bind_args, map.
       fold bind_args.
       change (((fix map (l : list expr_int) :
           list expr_int_sem :=
         match l with
         | nil => nil
+        | a :: t => eval_expr_int fs a :: map t
+        end) args)) with (map (eval_expr_int fs) args).
+      unfold append_arg.
+      unfold state_unchanged in H.
+      specialize (H a n a).
+      exists (n :: x).
+      split.
+        * exists a, x, n.
+          split.
+          { reflexivity. }
+          { split.
+            { apply H2. }
+            { 
+              unfold eval_expr_int.
+            }
+          }
+      
+      
+
+
+      (* Check map (eval_expr_int fs) (a2 :: args).
+      Check bind_args (map (eval_expr_int fs) (a2 :: args)). *)
+
+      (* unfold bind_args, map.
+      fold bind_args.
+      change (((fix map (l : list expr_int) :
+          list expr_int_sem :=
+        match l with
+        | nil => nil
         | a3 :: t => eval_expr_int fs a3 :: map t
-        end) args)) with (map (eval_expr_int fs) args) in H0.
+        end) args)) with (map (eval_expr_int fs) args) in H0. *)
 
 
 
