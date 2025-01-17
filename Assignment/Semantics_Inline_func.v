@@ -115,9 +115,29 @@ Proof.
     reflexivity.
 Qed.
 
+Definition state_halt (fs: func_list) (e: expr_int): Prop :=
+  forall s1, exists res s2, (s1, res, s2) ∈ (eval_expr_int fs e).
+
+Fixpoint list_state_halt (fs: func_list) (args: list expr_int): Prop :=
+  match args with
+  | nil => True
+  | cons e args' => state_halt fs e /\ list_state_halt fs args'
+  end.
+
+(* Lemma exists_trans_eval_expr_int:
+  forall fs s1 e, exists (s2: state) (res: Z), (s1, res, s2) ∈ eval_expr_int fs e.
+Proof.
+  intros.
+  induction e.
+  + unfold eval_expr_int. unfold const_sem.
+    exists s1. exists n.
+    sets_unfold. split; reflexivity.
+  + unfold eval_expr_int *)
+
 Lemma inline_const_sem:
   forall fs n args, 
     list_state_unchanged fs args ->
+    list_state_halt fs args ->
     Sets.equiv
       (func_sem (eval_expr_func (EFConst n))
       (map (eval_expr_int fs) args))
@@ -127,35 +147,33 @@ Proof.
   unfold eval_expr_func.
   unfold func_sem.
   intros.
-  split. revert a a0 a1. 
+  split; revert a a0 a1.
   + intros s1 res s2. intros.
-    destruct H0 as [s3 H0]. destruct H0 as [args0 H0].
-    destruct H0 as [? ?].
-    apply bind_args_unchanged in H0.
-    - rewrite <- H0 in H1.
-      sets_unfold in H1.
-      apply H1.
+    destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+    destruct H1 as [? ?].
+    apply bind_args_unchanged in H1.
+    - rewrite <- H1 in H2.
+      sets_unfold in H2.
+      apply H2.
     - apply H.
-  + intros.
+  + intros s1 res s2. intros.
     sets_unfold.
-    exists a.
+    exists s1.
     induction args.
     - unfold map, ret.
       unfold bind_args, ret.
       exists nil.
       tauto.
-    - unfold list_state_unchanged in H.
-      destruct H as [? ?].
-      change ((fix list_state_unchanged
-            (fs : func_list) (args : list expr_int) {struct args} : Prop :=
-            match args with
-            | nil => True
-            | e :: args' => state_unchanged fs e /\ list_state_unchanged fs args'
-            end) fs args) with (list_state_unchanged fs args) in H1.
-      specialize (IHargs H1).
-      destruct IHargs as [? ?]; destruct H2 as (? & ?).
-      unfold bind_args, map.
-      fold bind_args.
+    - destruct H as [? ?].
+      destruct H0 as [? ?].
+      specialize (IHargs H2 H3). destruct IHargs as [Dargs ?].
+      destruct H4 as (? & ?). clear H5.
+      unfold state_halt in H0.
+      specialize (H0 s1). destruct H0 as [arg H0]. destruct H0 as [s3 H0].
+      pose proof H0. apply H in H0.
+      rewrite <- H0 in H5.
+      exists (arg :: Dargs).
+      unfold bind_args, map. fold bind_args. 
       change (((fix map (l : list expr_int) :
           list expr_int_sem :=
         match l with
@@ -163,22 +181,10 @@ Proof.
         | a :: t => eval_expr_int fs a :: map t
         end) args)) with (map (eval_expr_int fs) args).
       unfold append_arg.
-      unfold state_unchanged in H.
-      specialize (H a n a).
-      exists (n :: x).
       split.
-        * exists a, x, n.
-          split.
-          { reflexivity. }
-          { split.
-            { apply H2. }
-            { 
-              unfold eval_expr_int.
-            }
-          }
-      
-      
-
+      exists s1, Dargs, arg.
+      tauto. tauto.
+Qed.
 
       (* Check map (eval_expr_int fs) (a2 :: args).
       Check bind_args (map (eval_expr_int fs) (a2 :: args)). *)
@@ -190,7 +196,7 @@ Proof.
         match l with
         | nil => nil
         | a3 :: t => eval_expr_int fs a3 :: map t
-        end) args)) with (map (eval_expr_int fs) args) in H0. *)
+        end) args)) with (map (eval_expr_int fs) args) in H0.
 
 
 
@@ -206,7 +212,7 @@ Proof.
   fold eval_expr_int.
   rewrite H.
   induction e.
-  + unfold translate_func_inline. eval_expr_func.
+  + unfold translate_func_inline, eval_expr_func.
     change ((fun _ : list Z => const_sem n)
             (map (eval_expr_int fs) args))
             with (const_sem n).
