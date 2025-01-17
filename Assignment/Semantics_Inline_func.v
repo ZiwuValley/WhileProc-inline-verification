@@ -124,16 +124,6 @@ Fixpoint list_state_halt (fs: func_list) (args: list expr_int): Prop :=
   | cons e args' => state_halt fs e /\ list_state_halt fs args'
   end.
 
-(* Lemma exists_trans_eval_expr_int:
-  forall fs s1 e, exists (s2: state) (res: Z), (s1, res, s2) ∈ eval_expr_int fs e.
-Proof.
-  intros.
-  induction e.
-  + unfold eval_expr_int. unfold const_sem.
-    exists s1. exists n.
-    sets_unfold. split; reflexivity.
-  + unfold eval_expr_int *)
-
 Lemma bind_args_unchanged_halt:
   forall fs args s1 (p: Prop),
     (list_state_unchanged fs args) ->
@@ -166,64 +156,101 @@ Proof.
     tauto. tauto.
 Qed.
 
-
-Lemma inline_const_sem:
-  forall fs n args, 
+Definition inline_sem (args: list expr_int) (e: expr_func) (sem: expr_int_sem): Prop :=
+  forall fs,
     list_state_unchanged fs args ->
     list_state_halt fs args ->
     Sets.equiv
-      (func_sem (eval_expr_func (EFConst n))
+      (func_sem (eval_expr_func e)
       (map (eval_expr_int fs) args))
-      (const_sem n).
+      sem.
+
+Lemma inline_const_sem:
+  forall args n, inline_sem args (EFConst n) (const_sem n).
 Proof.
-  intros.
-  unfold eval_expr_func.
-  unfold func_sem.
-  intros.
-  split; revert a a0 a1.
-  + intros s1 res s2. intros.
-    destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+  unfold inline_sem.
+  intros. unfold eval_expr_func, func_sem.
+  intros. split; revert a a0 a1; intros s1 res s2; intros.
+  + destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
     destruct H1 as [? ?].
     apply bind_args_unchanged in H1.
     - rewrite <- H1 in H2.
       sets_unfold in H2.
       apply H2.
     - apply H.
-  + intros s1 res s2. intros.
-    sets_unfold. exists s1.
+  + sets_unfold. exists s1.
     apply bind_args_unchanged_halt; tauto. 
 Qed.
 
-      (* Check map (eval_expr_int fs) (a2 :: args).
-      Check bind_args (map (eval_expr_int fs) (a2 :: args)). *)
+Lemma inline_var_sem:
+  forall args x, inline_sem args (EFVar x) (var_sem x).
+Proof.
+  unfold inline_sem.
+  intros. unfold eval_expr_func, func_sem.
+  intros. split; revert a a0 a1; intros s1 res s2; intros.
+  + destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+    destruct H1 as [? ?].
+    apply bind_args_unchanged in H1.
+    - rewrite <- H1 in H2.
+      sets_unfold in H2.
+      apply H2.
+    - apply H.
+    + sets_unfold. exists s1.
+    apply bind_args_unchanged_halt; tauto. 
+Qed.
 
-      (* unfold bind_args, map.
-      fold bind_args.
-      change (((fix map (l : list expr_int) :
-          list expr_int_sem :=
-        match l with
-        | nil => nil
-        | a3 :: t => eval_expr_int fs a3 :: map t
-        end) args)) with (map (eval_expr_int fs) args) in H0.
-
-
+Lemma inline_args_sem:
+  forall i fs args,
+  list_state_unchanged fs args ->
+  list_state_halt fs args ->
+  Sets.equiv
+    (func_sem (eval_expr_func (EFArgs i))
+    (map (eval_expr_int fs) args))
+    (eval_expr_int fs
+    (get_args_inline args i)).
+Proof.
+  intros. unfold eval_expr_func, func_sem.
+  intros. split; revert a a0 a1; intros s1 res s2; intros.
+  + destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+    destruct H1 as [? ?].
+    pose proof H1 as H10.
+    apply bind_args_unchanged in H1.
+    - rewrite <- H1 in H2. rewrite <- H1 in H10. clear H1.
+      sets_unfold in H2.
+      unfold args_sem in H2.
+      induction args.
+      * unfold get_args_inline, eval_expr_int.
+        unfold map, bind_args, ret in H10.
+        sets_unfold in H10. destruct H10 as [? _].
+        destruct H2 as [? ?]. rewrite <- H3. clear H3.
+        rewrite H1 in H2. clear H1.
+        unfold get_args in H2. unfold const_sem.
+        tauto.
+      * unfold get_args_inline.
+      unfold get_args_inline.
+      apply H2.
+    - apply H.
+  
 
 Lemma inline_equivalence:
   forall fs f e args, 
+    list_state_unchanged fs args ->
+    list_state_halt fs args ->
     eq (fs f) (eval_expr_func e) ->
     Sets.equiv
-    (eval_expr_int fs (translate_func_inline e args)) 
-    (eval_expr_int fs (EFunc f args)).
+    (eval_expr_int fs (EFunc f args))
+    (eval_expr_int fs (translate_func_inline e args)).
 Proof.
   intros.
   unfold eval_expr_int.
   fold eval_expr_int.
-  rewrite H.
-  induction e.
-  + unfold translate_func_inline, eval_expr_func.
-    change ((fun _ : list Z => const_sem n)
-            (map (eval_expr_int fs) args))
-            with (const_sem n).
+  induction e; unfold translate_func_inline, eval_expr_func;
+  rewrite H1; unfold eval_expr_int; fold eval_expr_int.
+  + apply inline_const_sem; tauto.
+  + apply inline_var_sem; tauto.
+  + unfold get_args_inline.
+  
+  apply inline_args_sem; tauto.
   split.
   unfold translate_func_inline.
 
