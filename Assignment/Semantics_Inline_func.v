@@ -134,6 +134,39 @@ Proof.
     sets_unfold. split; reflexivity.
   + unfold eval_expr_int *)
 
+Lemma bind_args_unchanged_halt:
+  forall fs args s1 (p: Prop),
+    (list_state_unchanged fs args) ->
+    (list_state_halt fs args) ->
+    p ->
+    (exists args0, (bind_args (map (eval_expr_int fs) args) s1 args0 s1) /\ p).
+Proof.
+  intros.
+  induction args.
+  + unfold map, bind_args, ret.
+    exists nil. tauto.
+  + destruct H as [? ?]. destruct H0 as [? ?].
+    specialize (IHargs H2 H3). destruct IHargs as [Dargs ?].
+    destruct H4 as (? & ?). clear H5.
+    unfold state_halt in H0.
+    specialize (H0 s1). destruct H0 as [arg H0]. destruct H0 as [s3 H0].
+    pose proof H0. apply H in H0.
+    rewrite <- H0 in H5.
+    exists (arg :: Dargs).
+    unfold bind_args, map. fold bind_args. 
+    change (((fix map (l : list expr_int) :
+        list expr_int_sem :=
+      match l with
+      | nil => nil
+      | a :: t => eval_expr_int fs a :: map t
+      end) args)) with (map (eval_expr_int fs) args).
+    unfold append_arg.
+    split.
+    exists s1, Dargs, arg.
+    tauto. tauto.
+Qed.
+
+
 Lemma inline_const_sem:
   forall fs n args, 
     list_state_unchanged fs args ->
@@ -157,33 +190,8 @@ Proof.
       apply H2.
     - apply H.
   + intros s1 res s2. intros.
-    sets_unfold.
-    exists s1.
-    induction args.
-    - unfold map, ret.
-      unfold bind_args, ret.
-      exists nil.
-      tauto.
-    - destruct H as [? ?].
-      destruct H0 as [? ?].
-      specialize (IHargs H2 H3). destruct IHargs as [Dargs ?].
-      destruct H4 as (? & ?). clear H5.
-      unfold state_halt in H0.
-      specialize (H0 s1). destruct H0 as [arg H0]. destruct H0 as [s3 H0].
-      pose proof H0. apply H in H0.
-      rewrite <- H0 in H5.
-      exists (arg :: Dargs).
-      unfold bind_args, map. fold bind_args. 
-      change (((fix map (l : list expr_int) :
-          list expr_int_sem :=
-        match l with
-        | nil => nil
-        | a :: t => eval_expr_int fs a :: map t
-        end) args)) with (map (eval_expr_int fs) args).
-      unfold append_arg.
-      split.
-      exists s1, Dargs, arg.
-      tauto. tauto.
+    sets_unfold. exists s1.
+    apply bind_args_unchanged_halt; tauto. 
 Qed.
 
       (* Check map (eval_expr_int fs) (a2 :: args).
