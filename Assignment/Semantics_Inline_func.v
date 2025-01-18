@@ -21,6 +21,41 @@ Import StateRelMonad.
 Import Lang_SimpleWhileFunc.
 Import Semantics_SimpleWhileFunc.
 
+(* [Forward from README.md]
+
+Semantics_Inline_func.v 中，我们假定函数全部不改变程序状态，只返回一个简单的表达式，
+
+在此基础上定义了函数的“内联”操作，即将函数调用直接展开，并证明了在函数返回值为常数，
+
+变量值，表达式等情况下，函数内联操作保持语义等价性
+
+我们在内联函数的语法中添加了一个新的表达式类型，即EFArgs i，表示计算函数列表中第 i 个参数 *)
+
+
+
+(* 以下是对第二部分一段简单的说明：*)
+
+(* 这部分中，除了“函数调用只返回一个简单的表达式，不改变程序状态”之外，我们还做了若干必要的假设：
+
+1. "list_state_unchanged fs args" 表示函数参数列表的调用不改变程序状态，因为在题设中，对函数列表内
+    出现的东西是没有任何限制的。举个例子，原函数为 f(g(), h()), 其中g()会改变程序状态，而h()使用了g()改变
+    的那个全局变量，而f = g() + h()。
+
+    这里需要用到的知识是，函数参数列表的求值顺序是undefined的，因此总存在一种求值顺序，使得h()先被算，而
+    g()后被算。但是当我们在inline的时候，是固定先算g()，再算h()。这就导致了inline前和inline后语义不等价了！
+
+2. "list_state_halt fs args" 表示函数参数列表的调用总是会终止，同样地，考虑 f(g(), h())，f = h()，
+    如果g()不停机，那么在不inline时，f也不会停机。但是在inline的时候，f = h(), 因此只会调用 EFArgs 2, 
+    即第二个参数，而不会调用第一个参数，因此f会停机。这就导致了inline前和inline后语义不等价了！
+
+3. "list_result_unique fs args" 表示函数参数列表的调用总是会返回唯一的结果，这个假设是为了保证inline后的
+    语义等价性。因为如果一个函数调用返回多个结果，那么inline后的语义就不唯一了。
+
+基于以上的假设，我们最终可以证明，对于一个函数调用，如果其内部只有常数，变量，表达式等
+简单的语句，那么inline后的语义是等价的。 *)
+
+
+(* 这一部分用于定义inline函数在取第i个参数时的语义 *)
 Fixpoint get_args (args: list Z) (i: Z): Z :=
   match args with
   | nil => 0
@@ -45,6 +80,7 @@ Fixpoint eval_expr_func (e: expr_func) (args: list Z) : expr_int_sem :=
   | EFMul e1 e2 => mul_sem (eval_expr_func e1 args) (eval_expr_func e2 args)
   end.
 
+(* 这里证明了args_sem能保持等价关系，即对于相同的参数列表，取相同的第i个值，返回值和结束状态是相同的 *)
 #[export] Instance args_sem_congr:
   Proper (eq ==> eq ==> Sets.equiv) args_sem.
 Proof.
@@ -55,9 +91,10 @@ Proof.
   reflexivity.
 Qed.
 
+(* 这里是inline函数中，get_args的定义，区别在于这里的args是expr_int类型的，而不是Z类型的 *)
 Fixpoint get_args_inline (args: list expr_int) (i: Z): expr_int :=
   match args with
-  | nil => EConst 0
+  | nil => EConst 0 (* 如果超出列表范围，返回0 *)
   | cons arg args' =>
     match i with
     | Z0 => arg
@@ -65,6 +102,7 @@ Fixpoint get_args_inline (args: list expr_int) (i: Z): expr_int :=
     end
   end.
 
+(* 这里递归定义了一个关键的函数，即将函数内表达式 e 做内联的操作 *)
 Fixpoint translate_func_inline (e: expr_func) (args: list expr_int) : expr_int :=
   match e with
   | EFConst n => EConst n
@@ -75,18 +113,22 @@ Fixpoint translate_func_inline (e: expr_func) (args: list expr_int) : expr_int :
   | EFMul e1 e2 => EMul (translate_func_inline e1 args) (translate_func_inline e2 args)
   end.
 
+(* 对于单个整数表达式，定义其具有“不改变状态”的条件，即前后状态一致 *)
 Definition state_unchanged (fs: func_list) (e: expr_int): Prop :=
   forall s1 res s2, (s1, res, s2) ∈ (eval_expr_int fs e) -> s1 = s2.
 
+(* 对于可以放在函数内的表达式，同理定义其具有“不改变状态”的条件 *)
 Definition state_unchanged_func (args: list Z) (e: expr_func): Prop :=
   forall s1 res s2, (s1, res, s2) ∈ (eval_expr_func e args) -> s1 = s2.
 
+(* 对于整个参数列表，递归定义其具有“不改变状态”的条件，即其中每个整数表达式都不改变状态 *)
 Fixpoint list_state_unchanged (fs: func_list) (args: list expr_int): Prop :=
   match args with
   | nil => True
   | cons e args' => state_unchanged fs e /\ list_state_unchanged fs args'
   end.
 
+(* 证明：计算参数列表的过程不改变程序状态 *)
 Lemma bind_args_unchanged:
   forall fs args, (list_state_unchanged fs args ->
     (forall s1 Dargs s2,
@@ -118,27 +160,35 @@ Proof.
     reflexivity.
 Qed.
 
+
+(* 对于单个整数表达式，定义其具有“停机”条件，即对于任何输入状态，都能找到一个输出状态 *)
 Definition state_halt (fs: func_list) (e: expr_int): Prop :=
   forall s1, exists res s2, (s1, res, s2) ∈ (eval_expr_int fs e).
 
+(* 对于整个整数表达式列表，递归定义其具有“停机”条件，即其中每个整数表达式都停机 *)
 Fixpoint list_state_halt (fs: func_list) (args: list expr_int): Prop :=
   match args with
   | nil => True
   | cons e args' => state_halt fs e /\ list_state_halt fs args'
   end.
 
+
+(* 对于单个整数表达式，定义其具有“唯一性”条件，即对于任何输入状态，其返回值唯一 *)
 Definition result_unique (fs: func_list) (e: expr_int): Prop :=
   forall s1 s2 s3 res1 res2, 
     (s1, res1, s2) ∈ (eval_expr_int fs e) ->
     (s1, res2, s3) ∈ (eval_expr_int fs e) -> 
     res1 = res2.
 
+(* 对于整个整数表达式列表，递归定义其具有“唯一性”条件，即其中每个整数表达式都有唯一返回值 *)
 Fixpoint list_result_unique (fs: func_list) (args: list expr_int): Prop :=
   match args with
   | nil => True
   | cons e args' => result_unique fs e /\ list_result_unique fs args'
   end.
 
+
+(* 证明：计算参数列表的过程不改变程序状态，且总是停机 *)
 Lemma bind_args_unchanged_halt:
   forall fs args s1 (p: Prop),
     (list_state_unchanged fs args) ->
@@ -171,6 +221,7 @@ Proof.
     tauto. tauto.
 Qed.
 
+(* 这里为了证明的简洁性，定义了某函数语句 e 和某语义 sem 在内联前后的语义等价性 *)
 Definition inline_sem (args: list expr_int) (e: expr_func) (sem: expr_int_sem): Prop :=
   forall fs,
     list_state_unchanged fs args ->
@@ -180,6 +231,7 @@ Definition inline_sem (args: list expr_int) (e: expr_func) (sem: expr_int_sem): 
       (map (eval_expr_int fs) args))
       sem.
 
+(* 这里证明了常数表达式的内联操作保持语义等价性 *)
 Lemma inline_const_sem:
   forall args n, inline_sem args (EFConst n) (const_sem n).
 Proof.
@@ -197,6 +249,7 @@ Proof.
     apply bind_args_unchanged_halt; tauto.
 Qed.
 
+(* 这里证明了变量表达式的内联操作保持语义等价性 *)
 Lemma inline_var_sem:
   forall args x, inline_sem args (EFVar x) (var_sem x).
 Proof.

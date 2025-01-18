@@ -15,12 +15,21 @@ Local Open Scope string.
 Local Open Scope Z.
 Local Open Scope sets.
 
-
-(* 定义 SimplieWhile + 函数调用的语义算子*)
-
 Module Semantics_SimpleWhileFunc.
 Import StateRelMonad.
 Import Lang_SimpleWhileFunc.
+
+
+(* 定义 SimplieWhile + 函数调用的语义算子*)
+
+(* [Forward from README.md]
+
+Semantic.v 中，我们定义了新语言的语义算子
+
+和 SimpleWhile 语言不同，由于函数的存在会导致表达式也可能修改程序状态，这里我们将表达式的语义也定义为：
+
+（执行前程序状态，返回值，执行后程序状态）的三元组，并在此基础上定义了各个表达式和语句的语意 *)
+
 
 Definition var_name: Type := string.
 Definition func_name: Type := string.

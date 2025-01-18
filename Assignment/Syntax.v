@@ -14,6 +14,14 @@ Local Open Scope sets.
 
 (* 定义 SimpleWhile + Function Call 语言的语法 *)
 
+(* [Forward from README.md]
+
+Syntax.v 中，基于课堂上提到的 SimpleWhile 语言的语法，加入了 Function Call 部分
+
+语言整体的解析分为表达式和语句两种类型，表达式支持整数类型以及布尔类型
+
+同时，函数调用的形式为按照调用函数名，从函数表中寻找对应函数 *)
+
 Definition var_name: Type := string.
 Definition func_name: Type := string.
 Definition state: Type := var_name -> Z.
