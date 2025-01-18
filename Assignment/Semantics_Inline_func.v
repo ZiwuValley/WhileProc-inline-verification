@@ -267,6 +267,42 @@ Proof.
       * 
 Admitted.
 
+Lemma inline_exists_args:
+  forall fs args s1,
+    list_state_unchanged fs args ->
+    list_state_halt fs args ->
+    exists args0,
+      (s1, args0, s1) ∈ bind_args (map (eval_expr_int fs) args).
+Proof.
+  intros.
+  induction args.
+  + unfold map, bind_args, ret.
+    exists nil. sets_unfold. tauto.
+  + destruct H as [? ?]. destruct H0 as [? ?]. 
+    specialize (IHargs H1 H2).
+    destruct IHargs as [Dargs ?].
+    unfold bind_args, map.
+    change (((fix map (l : list expr_int) :
+        list expr_int_sem :=
+      match l with
+      | nil => nil
+      | a :: t => eval_expr_int fs a :: map t
+      end) args)) with (map (eval_expr_int fs) args).
+      fold bind_args.
+    unfold append_arg.
+    assert (forall (s4: state), exists res s5, (s4, res, s5) ∈ eval_expr_int fs a).
+    intros. apply H0.
+    specialize (H4 s1). destruct H4 as [res H4]. destruct H4 as [s2 H4].
+    pose proof H4. apply H in H4.
+    rewrite <- H4 in H5.
+    exists (res :: Dargs).
+    sets_unfold.
+    exists s1, Dargs, res.
+    split. tauto. split. tauto. tauto.
+Qed.
+    
+
+
 Lemma inline_state_unchanged_func:
   forall fs e args,
     list_state_unchanged fs args ->
@@ -274,7 +310,7 @@ Lemma inline_state_unchanged_func:
     exists args0, state_unchanged_func args0 e.
 Proof.
   intros. unfold state_unchanged_func.
-  assert (exists s1 args1 s2, (s1, args, s2) ∈ bind_args (map (eval_expr_int fs) args))
+  assert (exists s1 args1 s2, (s1, args1, s2) ∈ bind_args (map (eval_expr_int fs) args)).
 
 
 Lemma inline_equivalence:
