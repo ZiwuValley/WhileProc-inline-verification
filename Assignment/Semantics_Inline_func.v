@@ -21,17 +21,23 @@ Import StateRelMonad.
 Import Lang_SimpleWhileFunc.
 Import Semantics_SimpleWhileFunc.
 
-Fixpoint get_args (args: list Z) (i: Z): Z :=
+Fixpoint test_nat (i: nat): nat :=
+    match i with
+    | O => 0
+    | S n => S (test_nat n)
+    end.
+
+Fixpoint get_args (args: list Z) (i: nat): Z :=
   match args with
   | nil => 0
   | cons arg args' =>
     match i with
-    | Z0 => arg
-    | _ => get_args args' (i-1)
+    | O => arg
+    | S n => get_args args' n
     end
   end.
 
-Definition args_sem (args: list Z) (i: Z): expr_int_sem :=
+Definition args_sem (args: list Z) (i: nat): expr_int_sem :=
   fun (s1: state) (res: Z) (s2: state) =>
   res = get_args args i /\ s1 = s2.
 
@@ -55,13 +61,13 @@ Proof.
   reflexivity.
 Qed.
 
-Fixpoint get_args_inline (args: list expr_int) (i: Z): expr_int :=
+Fixpoint get_args_inline (args: list expr_int) (i: nat): expr_int :=
   match args with
   | nil => EConst 0
   | cons arg args' =>
     match i with
-    | Z0 => arg
-    | _ => get_args_inline args' (i-1)
+    | O => arg
+    | S n => get_args_inline args' n
     end
   end.
 
@@ -363,6 +369,47 @@ Proof.
     tauto.
 Qed.
 
+Lemma inline_state_unchanged_int:
+  forall fs args e s1 res s2, 
+    list_state_unchanged fs args ->
+    (s1, res, s2) ∈ eval_expr_int fs (translate_func_inline e args) ->
+    s1 = s2.
+Proof.
+  intros.
+  revert H0. revert s1 res s2.
+  induction e; intros; simpl in *.
+  + unfold const_sem in H0.
+    sets_unfold in H0. tauto.
+  + unfold var_sem in H0.
+    sets_unfold in H0. tauto.
+  + unfold args_sem in H0.
+    sets_unfold in H0.
+    revert H0. revert i.
+    induction args; induction i; intros; simpl in *.  
+    - unfold const_sem in H0. tauto.
+    - unfold const_sem in H0. tauto.
+    - destruct H. specialize (IHargs H1). clear H1.
+      apply H in H0. tauto.
+    - destruct H. specialize (IHargs H1 i H0). tauto.
+  + unfold add_sem in H0.
+    sets_unfold in H0.
+    destruct H0 as [res1 H0]. destruct H0 as [s3 H0].
+    destruct H0.
+    apply IHe1 in H0. apply IHe2 in H1. 
+    rewrite H0, H1. tauto.
+  + unfold sub_sem in H0.
+    sets_unfold in H0.
+    destruct H0 as [res1 H0]. destruct H0 as [s3 H0].
+    destruct H0.
+    apply IHe1 in H0. apply IHe2 in H1. 
+    rewrite H0, H1. tauto.
+  + unfold mul_sem in H0.
+    sets_unfold in H0.
+    destruct H0 as [res1 H0]. destruct H0 as [s3 H0].
+    destruct H0 as [b H0]. destruct H0 as (? & ? & ?).
+    apply IHe1 in H1. apply IHe2 in H2. 
+    rewrite H1, H2. tauto.
+Qed.
 
 (* Lemma eval_expr_int_unique:
   forall fs e s1 s2 s3 arg0 arg1,
@@ -457,6 +504,7 @@ Definition inline_sem_2 (Binop: expr_func -> expr_func -> expr_func): Prop :=
   forall fs e1 e2 args,
     list_state_unchanged fs args ->
     list_state_halt fs args ->
+    list_result_unique fs args ->
     func_sem (eval_expr_func e1)
       (map (eval_expr_int fs) args) ==
     eval_expr_int fs (translate_func_inline e1 args) ->
@@ -471,7 +519,7 @@ Definition inline_sem_2 (Binop: expr_func -> expr_func -> expr_func): Prop :=
 Lemma inline_add_sem: 
   inline_sem_2 EFAdd.
 Proof.
-  unfold inline_sem_2. intros fs e1 e2 args H H0 IHe1 IHe2.
+  unfold inline_sem_2. intros fs e1 e2 args H H0 H100 IHe1 IHe2.
   unfold func_sem. split; revert a a0 a1; intros s1 res s2; intros H1.
 
   + destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
@@ -523,6 +571,7 @@ Proof.
     specialize (IHe1 H1). destruct IHe1 as [s4 IHe1]. 
     destruct IHe1 as [args0 IHe1].
     destruct IHe1 as [H10 IHe1].
+    pose proof H10 as H11.
     apply bind_args_unchanged in H10. rewrite <- H10 in *. clear H10 s4.
 
     unfold func_sem in IHe2. sets_unfold in IHe2.
@@ -530,13 +579,23 @@ Proof.
     specialize (IHe2 H2). destruct IHe2 as [s4 IHe2]. 
     destruct IHe2 as [args1 IHe2].
     destruct IHe2 as [H10 IHe2].
+    pose proof H10 as H12.
     apply bind_args_unchanged in H10. rewrite <- H10 in *. clear H10 s4.
     
-    
-  
-    pose proof (inline_exists_args fs args s1 H H0).
-    destruct H2 as [args0 H2].
+    pose proof H1. apply inline_state_unchanged_int in H3. 
+    rewrite <- H3 in *. clear H3.
+    pose proof H2. apply inline_state_unchanged_int in H3. 
+    rewrite <- H3 in *. clear H3.
+
+    pose proof (bind_args_unique fs args s1 s1 s1 args0 args1 H H100 H11 H12).
+    rewrite <- H3 in *. clear H3.
+
     exists s1, args0. split. tauto.
+    unfold add_sem. sets_unfold.
+    exists res1, s1. tauto.
+    tauto. tauto. tauto. tauto.
+Qed.
+    
     
 
     
@@ -545,6 +604,7 @@ Lemma inline_equivalence:
   forall fs f e args,
     list_state_unchanged fs args ->
     list_state_halt fs args ->
+    list_result_unique fs args ->
     eq (fs f) (eval_expr_func e) ->
     Sets.equiv
     (eval_expr_int fs (EFunc f args))
@@ -553,7 +613,7 @@ Proof.
   intros.
   unfold eval_expr_int.
   fold eval_expr_int.
-  rewrite H1. clear H1.
+  rewrite H2. clear H2.
   induction e; intros;
   (*unfold translate_func_inline, eval_expr_func;*)
   unfold eval_expr_int; fold eval_expr_int.
@@ -561,6 +621,7 @@ Proof.
   + apply inline_var_sem; tauto.
   + apply inline_args_sem; tauto.
   + apply inline_add_sem; tauto.
+  + apply inline_sub_sem; tauto.
     
     
          

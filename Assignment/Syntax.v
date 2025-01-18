@@ -39,7 +39,7 @@ Inductive expr_bool: Type :=
 Inductive expr_func : Type :=
   | EFConst (n: Z): expr_func
   | EFVar (x: var_name): expr_func
-  | EFArgs (i : Z): expr_func
+  | EFArgs (i : nat): expr_func
   | EFAdd (e1 e2: expr_func): expr_func
   | EFSub (e1 e2: expr_func): expr_func
   | EFMul (e1 e2: expr_func): expr_func.
