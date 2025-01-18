@@ -78,6 +78,9 @@ Fixpoint translate_func_inline (e: expr_func) (args: list expr_int) : expr_int :
 Definition state_unchanged (fs: func_list) (e: expr_int): Prop :=
   forall s1 res s2, (s1, res, s2) ∈ (eval_expr_int fs e) -> s1 = s2.
 
+Definition state_unchanged_func (args: list Z) (e: expr_func): Prop :=
+  forall s1 res s2, (s1, res, s2) ∈ (eval_expr_func e args) -> s1 = s2.
+
 Fixpoint list_state_unchanged (fs: func_list) (args: list expr_int): Prop :=
   match args with
   | nil => True
@@ -195,13 +198,8 @@ Proof.
       sets_unfold in H2.
       apply H2.
     - apply H.
-<<<<<<< HEAD
   + sets_unfold. exists s1.
     apply bind_args_unchanged_halt; tauto. 
-=======
-    + sets_unfold. exists s1.
-    apply bind_args_unchanged_halt; tauto.
->>>>>>> 071e46bb0fd639586623380bc8bc3c3879cc5cf1
 Qed.
 
 Lemma inline_args_sem:
@@ -233,7 +231,6 @@ Proof.
         tauto.
       * unfold get_args_inline.
       unfold get_args_inline.
-<<<<<<< HEAD
 Admitted.
   
 Lemma inline_add_sem:
@@ -270,11 +267,14 @@ Proof.
       * 
 Admitted.
 
-
-=======
-      apply H2.
-    - apply H.
->>>>>>> 071e46bb0fd639586623380bc8bc3c3879cc5cf1
+Lemma inline_state_unchanged_func:
+  forall fs e args,
+    list_state_unchanged fs args ->
+    list_state_halt fs args ->
+    exists args0, state_unchanged_func args0 e.
+Proof.
+  intros. unfold state_unchanged_func.
+  assert (exists s1 args1 s2, (s1, args, s2) ∈ bind_args (map (eval_expr_int fs) args))
 
 
 Lemma inline_equivalence:
@@ -289,22 +289,32 @@ Proof.
   intros.
   unfold eval_expr_int.
   fold eval_expr_int.
-  induction e; unfold translate_func_inline, eval_expr_func;
-  rewrite H1; unfold eval_expr_int; fold eval_expr_int.
+  rewrite H1. clear H1.
+  induction e; unfold translate_func_inline, eval_expr_func; intros;
+  unfold eval_expr_int; fold eval_expr_int.
   + apply inline_const_sem; tauto.
   + apply inline_var_sem; tauto.
-<<<<<<< HEAD
   + apply inline_args_sem; tauto.
-  + fold translate_func_inline.
+  + fold translate_func_inline eval_expr_func.
+    unfold func_sem. split. revert a a0 a1. intros s1 res s2.
+    unfold func_sem in IHe1. sets_unfold in IHe1. 
+    intros. destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+    destruct H1. unfold add_sem in H2. sets_unfold in H2.
+    destruct H2 as [res1 H2]. destruct H2 as [s4 H2]. 
+    specialize (IHe1 s1 res1 s2).
+    assert (exists s3 args0, 
+      (s1, args0, s3) ∈ bind_args (map (eval_expr_int fs) args) /\
+      eval_expr_func e1 args0 s3 res1 s2).
+    exists s3. exists args0. 
+    split. apply H1.
+
+    tauto.
+    revert x.
     apply inline_add_sem.
     - tauto.
     - tauto.
     - 
   
-=======
-  + unfold get_args_inline.
-
->>>>>>> 071e46bb0fd639586623380bc8bc3c3879cc5cf1
   apply inline_args_sem; tauto.
   split.
   unfold translate_func_inline.
