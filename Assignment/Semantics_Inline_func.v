@@ -21,10 +21,10 @@ Import StateRelMonad.
 Import Lang_SimpleWhileFunc.
 Import Semantics_SimpleWhileFunc.
 
-Fixpoint get_args (args: list Z) (i: Z): Z := 
+Fixpoint get_args (args: list Z) (i: Z): Z :=
   match args with
   | nil => 0
-  | cons arg args' => 
+  | cons arg args' =>
     match i with
     | Z0 => arg
     | _ => get_args args' (i-1)
@@ -32,10 +32,10 @@ Fixpoint get_args (args: list Z) (i: Z): Z :=
   end.
 
 Definition args_sem (args: list Z) (i: Z): expr_int_sem :=
-  fun (s1: state) (res: Z) (s2: state) => 
+  fun (s1: state) (res: Z) (s2: state) =>
   res = get_args args i /\ s1 = s2.
 
-Fixpoint eval_expr_func (e: expr_func) (args: list Z) : expr_int_sem := 
+Fixpoint eval_expr_func (e: expr_func) (args: list Z) : expr_int_sem :=
   match e with
   | EFConst n => const_sem n
   | EFVar X => var_sem X
@@ -55,10 +55,10 @@ Proof.
   reflexivity.
 Qed.
 
-Fixpoint get_args_inline (args: list expr_int) (i: Z): expr_int := 
+Fixpoint get_args_inline (args: list expr_int) (i: Z): expr_int :=
   match args with
   | nil => EConst 0
-  | cons arg args' => 
+  | cons arg args' =>
     match i with
     | Z0 => arg
     | _ => get_args_inline args' (i-1)
@@ -85,8 +85,8 @@ Fixpoint list_state_unchanged (fs: func_list) (args: list expr_int): Prop :=
   end.
 
 Lemma bind_args_unchanged:
-  forall fs args, (list_state_unchanged fs args -> 
-    (forall s1 Dargs s2, 
+  forall fs args, (list_state_unchanged fs args ->
+    (forall s1 Dargs s2,
       ((s1, Dargs, s2) ∈ bind_args (map (eval_expr_int fs) args) ->
         s1 = s2))).
 Proof.
@@ -106,9 +106,9 @@ Proof.
         | nil => nil
         | a :: t => eval_expr_int fs a :: map t
         end) args)) with (map (eval_expr_int fs) args) in H0.
-    unfold append_arg in H0. destruct H0 as [s3 ?]. 
+    unfold append_arg in H0. destruct H0 as [s3 ?].
     destruct H0 as [Dargs0 ?]. destruct H0 as [arg ?].
-    destruct H0 as (H2 & H3 & H4). 
+    destruct H0 as (H2 & H3 & H4).
     specialize (IHargs s3 Dargs0 s2 H3).
     apply H in H4.
     rewrite H4, <- IHargs.
@@ -143,7 +143,7 @@ Proof.
     pose proof H0. apply H in H0.
     rewrite <- H0 in H5.
     exists (arg :: Dargs).
-    unfold bind_args, map. fold bind_args. 
+    unfold bind_args, map. fold bind_args.
     change (((fix map (l : list expr_int) :
         list expr_int_sem :=
       match l with
@@ -179,7 +179,7 @@ Proof.
       apply H2.
     - apply H.
   + sets_unfold. exists s1.
-    apply bind_args_unchanged_halt; tauto. 
+    apply bind_args_unchanged_halt; tauto.
 Qed.
 
 Lemma inline_var_sem:
@@ -196,7 +196,7 @@ Proof.
       apply H2.
     - apply H.
     + sets_unfold. exists s1.
-    apply bind_args_unchanged_halt; tauto. 
+    apply bind_args_unchanged_halt; tauto.
 Qed.
 
 Lemma inline_args_sem:
@@ -230,10 +230,10 @@ Proof.
       unfold get_args_inline.
       apply H2.
     - apply H.
-  
+
 
 Lemma inline_equivalence:
-  forall fs f e args, 
+  forall fs f e args,
     list_state_unchanged fs args ->
     list_state_halt fs args ->
     eq (fs f) (eval_expr_func e) ->
@@ -249,7 +249,7 @@ Proof.
   + apply inline_const_sem; tauto.
   + apply inline_var_sem; tauto.
   + unfold get_args_inline.
-  
+
   apply inline_args_sem; tauto.
   split.
   unfold translate_func_inline.

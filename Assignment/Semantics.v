@@ -105,7 +105,7 @@ Definition test_true (D: expr_bool_sem): com_sem :=
   fun (s1: state) (s2: state) => (s1, true, s2) ∈ D.
 
 Definition test_false (D: expr_bool_sem): com_sem :=
-  fun (s1: state) (s2: state) => (s1, false, s2) ∈ D.  
+  fun (s1: state) (s2: state) => (s1, false, s2) ∈ D.
 
 Definition if_sem (D0: expr_bool_sem) (D1 D2: com_sem): com_sem :=
   (test_true D0 ∘ D1) ∪ (test_false D0 ∘ D2).
@@ -193,7 +193,7 @@ Proof.
   intros D11 D12 H1 D21 D22 H2.
   unfold add_sem.
   intros s1 res s2.
-  split. 
+  split.
   + intros. destruct H as [a H]. destruct H as [s3 H].
     exists a. exists s3.
     rewrite <- H1, <- H2.
@@ -211,7 +211,7 @@ Proof.
   intros D11 D12 H1 D21 D22 H2.
   unfold sub_sem.
   intros s1 res s2.
-  split. 
+  split.
   + intros. destruct H as [a H]. destruct H as [s3 H].
     exists a. exists s3.
     rewrite <- H1, <- H2.
@@ -229,7 +229,7 @@ Proof.
   intros D11 D12 H1 D21 D22 H2.
   unfold mul_sem.
   intros s1 res s2.
-  split. 
+  split.
   + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
     exists a. exists s3. exists b.
     rewrite <- H1, <- H2.
@@ -248,7 +248,7 @@ Proof.
   unfold append_arg.
   intros s1 res s2.
   intros. sets_unfold.
-  intros. 
+  intros.
   destruct H as [s3 H]. destruct H as [args H]. destruct H as [arg H].
   exists s3. exists args. exists arg.
   sets_unfold in H2. specialize (H2 s1 arg s3).
@@ -260,7 +260,7 @@ Proof.
 Qed.
 
 Definition list_expr_int_sem_equiv:
-  (list expr_int_sem) -> (list expr_int_sem) -> Prop := 
+  (list expr_int_sem) -> (list expr_int_sem) -> Prop :=
   list_relation Sets.equiv.
 
 #[export] Instance list_expr_int_sem_equiv_equiv:
@@ -316,7 +316,7 @@ Proof.
   intros f g H1 args1 args2 H2.
   unfold func_sem.
   intros s1 res s2.
-  split. 
+  split.
   + intros. destruct H as [a H]. destruct H as [s3 H]. destruct H as [b H].
     exists a. exists s3.
     rewrite <- H1, <- H2.
@@ -441,7 +441,7 @@ Proof.
   unfold while_sem.
   apply Sets_indexed_union_congr.
   intros n.
-  induction n; simpl. 
+  induction n; simpl.
   + reflexivity.
   + rewrite IHn, H, H0. reflexivity.
 Qed.
@@ -536,7 +536,7 @@ Proof.
   unfold Proper, respectful, iequiv, bequiv.
   intros; simpl.
   apply lt_sem_congr.
-  + apply (H fs). + apply (H0 fs). 
+  + apply (H fs). + apply (H0 fs).
 Qed.
 
 #[export] Instance EAnd_congr:
@@ -594,7 +594,7 @@ Proof.
 Qed.
 
 Definition list_iequiv:
-  (list expr_int) -> (list expr_int) -> Prop := 
+  (list expr_int) -> (list expr_int) -> Prop :=
   list_relation iequiv.
 
 #[export] Instance list_iequiv_equiv:
@@ -619,8 +619,8 @@ Lemma func_iequiv_sequiv_reflexive:
   forall fs, func_iequiv_sequiv (eval_expr_int fs) (eval_expr_int fs).
 Proof.
   intros.
-  unfold func_iequiv_sequiv. 
-  exists fs. exists fs. 
+  unfold func_iequiv_sequiv.
+  exists fs. exists fs.
   split. reflexivity.
   split. reflexivity.
   unfold iequiv. intros.
@@ -628,7 +628,7 @@ Proof.
 Qed.
 
 #[export] Instance map_func_congr:
-  Proper (func_iequiv_sequiv ==> list_iequiv ==> list_expr_int_sem_equiv) 
+  Proper (func_iequiv_sequiv ==> list_iequiv ==> list_expr_int_sem_equiv)
     (@map expr_int expr_int_sem).
 Proof.
   unfold Proper, respectful.
@@ -640,16 +640,16 @@ Proof.
   + unfold map. auto.
   + unfold list_iequiv in H0. unfold list_relation in H0. tauto.
   + unfold list_iequiv in H0. unfold list_relation in H0. tauto.
-  + unfold list_iequiv in H0. unfold list_relation in H0. destruct H0 as [H1 H2]. 
-    assert (list_iequiv x0 y0). tauto. clear H2. 
+  + unfold list_iequiv in H0. unfold list_relation in H0. destruct H0 as [H1 H2].
+    assert (list_iequiv x0 y0). tauto. clear H2.
     specialize (IHx0 y0 H0).
-    unfold map. split. 
+    unfold map. split.
     - unfold func_iequiv_sequiv in H. destruct H as [fs1 H]. destruct H as [fs2 H].
       destruct H as (H2 & H3 & H4).
       specialize (H4 a e H1). tauto.
     - apply IHx0.
 Qed.
-  
+
 
 #[export] Instance EFunc_congr:
   Proper (eq ==> list_iequiv ==> iequiv) EFunc.
@@ -659,7 +659,7 @@ Proof.
   apply func_sem_congr.
   + rewrite H. reflexivity.
   + apply map_func_congr.
-    - apply func_iequiv_sequiv_reflexive. 
+    - apply func_iequiv_sequiv_reflexive.
     - apply H0.
 Qed.
 
