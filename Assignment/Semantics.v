@@ -26,6 +26,7 @@ Definition var_name: Type := string.
 Definition func_name: Type := string.
 Definition state: Type := var_name -> Z.
 
+(* 定义语义算子的类型，为state -> Z -> state的三元关系 *)
 Definition expr_int_sem: Type := state -> Z -> state -> Prop.
 Definition expr_bool_sem: Type := state -> bool -> state -> Prop.
 Definition com_sem: Type := state -> state -> Prop.

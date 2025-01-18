@@ -195,7 +195,7 @@ Proof.
       sets_unfold in H2.
       apply H2.
     - apply H.
-    + sets_unfold. exists s1.
+  + sets_unfold. exists s1.
     apply bind_args_unchanged_halt; tauto. 
 Qed.
 
@@ -228,9 +228,44 @@ Proof.
         tauto.
       * unfold get_args_inline.
       unfold get_args_inline.
-      apply H2.
-    - apply H.
+Admitted.
   
+Lemma inline_add_sem:
+  forall fs e1 e2 args,
+  list_state_unchanged fs args ->
+  list_state_halt fs args ->
+  state_unchanged fs (translate_func_inline e1 args) ->
+  state_unchanged fs (translate_func_inline e2 args) ->
+  state_halt fs (translate_func_inline e1 args) ->
+  state_halt fs (translate_func_inline e2 args) ->
+  Sets.equiv
+    (func_sem (eval_expr_func (EFAdd e1 e2))
+    (map (eval_expr_int fs) args))
+    (add_sem (eval_expr_int fs (translate_func_inline e1 args))
+    (eval_expr_int fs (translate_func_inline e2 args))).
+Proof.
+  intros. unfold eval_expr_func, func_sem.
+  intros. split.
+  + fold eval_expr_func. 
+    intros.
+    destruct H5 as [s3 H5]. destruct H5 as [args0 H5].
+    destruct H5 as [? ?].
+    pose proof H5 as H7.
+    apply bind_args_unchanged in H5.
+    rewrite <- H5 in H7; rewrite <- H5 in H6. 
+    clear H5.
+    - sets_unfold in H6.
+      unfold add_sem in H6.
+      destruct H6 as [res H6]. destruct H6 as [s5 H6].
+      destruct H6 as [? H6].
+      unfold add_sem.
+      exists res, s5.
+      split.
+      * 
+Admitted.
+
+
+
 
 Lemma inline_equivalence:
   forall fs f e args, 
@@ -248,7 +283,12 @@ Proof.
   rewrite H1; unfold eval_expr_int; fold eval_expr_int.
   + apply inline_const_sem; tauto.
   + apply inline_var_sem; tauto.
-  + unfold get_args_inline.
+  + apply inline_args_sem; tauto.
+  + fold translate_func_inline.
+    apply inline_add_sem.
+    - tauto.
+    - tauto.
+    - 
   
   apply inline_args_sem; tauto.
   split.
