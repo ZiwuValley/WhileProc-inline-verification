@@ -297,12 +297,6 @@ Proof.
   + unfold Transitive. intros. transitivity y. tauto. tauto.
 Qed.
 
-(* Lemma func_to_set_3types (A B C: Type):
-  forall (f: A -> B -> C -> Prop) (x: A) (y: B) (z: C), (f x y z) = ((x, y, z) ∈ f).
-Proof.
-  intros. sets_unfold. tauto.
-Qed. *)
-
 #[export] Instance bind_args_congr:
   Proper (list_expr_int_sem_equiv ==> Sets.equiv) bind_args.
 Proof.
@@ -648,7 +642,7 @@ Definition func_iequiv_sequiv:
   (* 对于任意等价的表达式 a 和 b，f a 和 g b 的集合值是等价的。 *)
   forall a b: expr_int, iequiv a b -> Sets.equiv (f a) (g b).
 
-(* 证明 func_iequiv_sequiv 是一个自反关系。 *)
+(* 证明 func_iequiv_sequiv 对所有(eval_expr_int fs)存在自反关系。 *)
 Lemma func_iequiv_sequiv_reflexive:
   forall fs, func_iequiv_sequiv (eval_expr_int fs) (eval_expr_int fs).
 Proof.

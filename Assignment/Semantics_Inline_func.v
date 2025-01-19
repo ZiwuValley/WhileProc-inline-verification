@@ -29,7 +29,7 @@ Semantics_Inline_func.v 中，我们假定函数全部不改变程序状态，�
 
 变量值，表达式等情况下，函数内联操作保持语义等价性
 
-我们在内联函数的语法中添加了一个新的表达式类型，即EFArgs i，表示计算函数列表中第 i 个参数 *)
+我们在内联函数的语法中添加了一个新的表达式类型，即EFArgs i，表示计算函数列表中第 i 个参数*)
 
 
 
@@ -49,18 +49,16 @@ Semantics_Inline_func.v 中，我们假定函数全部不改变程序状态，�
     即第二个参数，而不会调用第一个参数，因此f会停机。这就导致了inline前和inline后语义不等价了！
 
 3. "list_result_unique fs args" 表示函数参数列表的调用总是会返回唯一的结果，这个假设是为了保证inline后的
-    语义等价性。因为如果一个函数调用返回多个结果，那么inline后的语义就不唯一了。
+    语义等价性。因为如果一个函数调用返回多个结果，那么inline后的语义就不唯一了。考虑f(x) = x + x，而g()是
+    一个返回随机数的函数，g() ~ Ber(1/2)，那么f(g())有1/2的几率为0，1/2的几率为2，但是inline后g()+g()有
+    1/4的概率是1，这就导致了inline前和inline后语义不等价了！
 
-基于以上的假设，我们最终可以证明，对于一个函数调用，如果其内部只有常数，变量，表达式等
-简单的语句，那么inline后的语义是等价的。 *)
+如果一个函数调用满足以上的假设，那么它是可以被inline的，我们定义的inline操作为类似宏替换的操作。
+
+基于以上的假设，我们最终可以证明，对于一个函数调用，如果其内部只有常数，变量，+，-，*等
+简单的语句，且没有函数调用，那么inline后的语义是等价的。 *)
 
 (* 这一部分用于定义inline函数在取第i个参数时的语义 *)
-
-Fixpoint test_nat (i: nat): nat :=
-    match i with
-    | O => 0
-    | S n => S (test_nat n)
-    end.
 
 Fixpoint get_args (args: list Z) (i: nat): Z :=
   match args with
@@ -97,7 +95,8 @@ Proof.
   reflexivity.
 Qed.
 
-(* 这里是inline函数中，get_args的定义，区别在于这里的args是expr_int类型的，而不是Z类型的 *)
+(* 这里是inline函数中，get_args的定义，区别在于这里的args是expr_int类型的，而不是Z类型的 
+   这个函数对应了用参数列表中的表达式去使用类似宏替换的方法替换EFArgs语句 *)
 Fixpoint get_args_inline (args: list expr_int) (i: nat): expr_int :=
   match args with
   | nil => EConst 0
@@ -108,7 +107,8 @@ Fixpoint get_args_inline (args: list expr_int) (i: nat): expr_int :=
     end
   end.
 
-(* 这里递归定义了一个关键的函数，即将函数内表达式 e 做内联的操作 *)
+(* 这里递归定义了一个关键的函数，即一个函数如果能被expr_func的语言表达，那么只要fs和args满足对应的条件，就可inline
+   这个函数将expr_func和args翻译成一个expr_int，即对应了函数inline的过程 *)
 Fixpoint translate_func_inline (e: expr_func) (args: list expr_int) : expr_int :=
   match e with
   | EFConst n => EConst n
@@ -149,14 +149,7 @@ Proof.
   + intros.
     unfold list_state_unchanged in H. destruct H as [? ?].
     fold list_state_unchanged in H1. specialize (IHargs H1).
-    sets_unfold in H0. unfold bind_args, map in H0.
-    fold bind_args in H0.
-    change (((fix map (l : list expr_int) :
-          list expr_int_sem :=
-        match l with
-        | nil => nil
-        | a :: t => eval_expr_int fs a :: map t
-        end) args)) with (map (eval_expr_int fs) args) in H0.
+    sets_unfold in H0. simpl in H0. 
     unfold append_arg in H0. destruct H0 as [s3 ?].
     destruct H0 as [Dargs0 ?]. destruct H0 as [arg ?].
     destruct H0 as (H2 & H3 & H4).
@@ -210,14 +203,7 @@ Proof.
     specialize (H0 s1). destruct H0 as [arg H0]. destruct H0 as [s3 H0].
     pose proof H0. apply H in H0.
     rewrite <- H0 in H5.
-    exists (arg :: Dargs).
-    unfold bind_args, map. fold bind_args.
-    change (((fix map (l : list expr_int) :
-        list expr_int_sem :=
-      match l with
-      | nil => nil
-      | a :: t => eval_expr_int fs a :: map t
-      end) args)) with (map (eval_expr_int fs) args).
+    exists (arg :: Dargs). simpl in *.
     unfold append_arg.
     split.
     exists s1, Dargs, arg.
@@ -286,14 +272,7 @@ Proof.
   + destruct H as [? ?]. destruct H0 as [? ?]. 
     specialize (IHargs H1 H2).
     destruct IHargs as [Dargs ?].
-    unfold bind_args, map.
-    change (((fix map (l : list expr_int) :
-        list expr_int_sem :=
-      match l with
-      | nil => nil
-      | a :: t => eval_expr_int fs a :: map t
-      end) args)) with (map (eval_expr_int fs) args).
-      fold bind_args.
+    simpl in *.
     unfold append_arg.
     assert (forall (s4: state), exists res s5, (s4, res, s5) ∈ eval_expr_int fs a).
     intros. apply H0.
@@ -320,7 +299,7 @@ Proof.
   destruct H. exists arg, args1. symmetry. tauto.
 Qed.
 
-(* 证明能放在内联函数里的表达式不改变程序状态 *)
+(* 证明能一个函数如果能被expr_func表达，那么对应的函数不改变程序状态 *)
 Lemma inline_state_unchanged_func:
   forall args0 e, state_unchanged_func args0 e.
 Proof.
@@ -360,7 +339,8 @@ Proof.
     tauto.
 Qed.
 
-(*  *)
+(* 证明如果有参数列表的计算不改变程序状态，那么expr_func翻译出来的
+   expr_int在对应fs和args下的求值也不改变程序状态 *)
 Lemma inline_state_unchanged_int:
   forall fs args e s1 res s2, 
     list_state_unchanged fs args ->
@@ -403,6 +383,8 @@ Proof.
     rewrite H1, H2. tauto.
 Qed.
 
+(* 证明如果有参数列表的计算不改成程序状态且每个表达式本身结果唯一，那么同一状态算出的
+   list Z是唯一的 *)
 Lemma bind_args_unique:
   forall fs args s1 s2 s3 args0 args1, 
     list_state_unchanged fs args ->
@@ -440,6 +422,7 @@ Proof.
     specialize (IHargs H5 H7). rewrite IHargs in *. tauto. tauto. tauto.
 Qed.
   
+(* 证明如果参数列表不改变程序状态，必定停机且求值唯一，那么EFArgs语句在inline前后保持语义等价 *)
 Lemma inline_args_sem:
   forall i fs args,
   list_state_unchanged fs args ->
@@ -545,6 +528,7 @@ Proof.
       apply H6. tauto. tauto. tauto.
 Qed.
 
+(* 定义二元操作在参数列表的假设与归纳假设成立时满足inline前后行为等价 *)
 Definition inline_sem_2 (Binop: expr_func -> expr_func -> expr_func): Prop :=
   forall fs e1 e2 args,
     list_state_unchanged fs args ->
@@ -561,6 +545,7 @@ Definition inline_sem_2 (Binop: expr_func -> expr_func -> expr_func): Prop :=
     eval_expr_int fs
       (translate_func_inline (Binop e1 e2) args).
 
+(* 证明EFAdd在参数列表的假设与归纳假设成立时满足inline前后行为等价 *)
 Lemma inline_add_sem: 
   inline_sem_2 EFAdd.
 Proof.
@@ -640,7 +625,8 @@ Proof.
     exists res1, s1. tauto.
     tauto. tauto. tauto. tauto.
 Qed.
-    
+
+(* 证明EFSub在参数列表的假设与归纳假设成立时满足inline前后行为等价 *)
 Lemma inline_sub_sem: 
   inline_sem_2 EFSub.
 Proof.
@@ -721,6 +707,7 @@ Proof.
     tauto. tauto. tauto. tauto.
 Qed. 
 
+(* 证明EFMul在参数列表的假设与归纳假设成立时满足inline前后行为等价 *)
 Lemma inline_mul_sem: 
   inline_sem_2 EFMul.
 Proof.
@@ -802,6 +789,7 @@ Proof.
     tauto. tauto. tauto. tauto.
 Qed.
 
+(* 证明如果参数列表满足不改变程序状态，必定停机且求值唯一，那么inline前后的语句满足行为等价 *)
 Lemma inline_equivalence:
   forall fs f e args,
     list_state_unchanged fs args ->
