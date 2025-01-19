@@ -54,9 +54,15 @@ Semantics_Inline_func.v 中，我们假定函数全部不改变程序状态，�
 基于以上的假设，我们最终可以证明，对于一个函数调用，如果其内部只有常数，变量，表达式等
 简单的语句，那么inline后的语义是等价的。 *)
 
-
 (* 这一部分用于定义inline函数在取第i个参数时的语义 *)
-Fixpoint get_args (args: list Z) (i: Z): Z :=
+
+Fixpoint test_nat (i: nat): nat :=
+    match i with
+    | O => 0
+    | S n => S (test_nat n)
+    end.
+
+Fixpoint get_args (args: list Z) (i: nat): Z :=
   match args with
   | nil => 0
   | cons arg args' =>
@@ -92,9 +98,9 @@ Proof.
 Qed.
 
 (* 这里是inline函数中，get_args的定义，区别在于这里的args是expr_int类型的，而不是Z类型的 *)
-Fixpoint get_args_inline (args: list expr_int) (i: Z): expr_int :=
+Fixpoint get_args_inline (args: list expr_int) (i: nat): expr_int :=
   match args with
-  | nil => EConst 0 (* 如果超出列表范围，返回0 *)
+  | nil => EConst 0
   | cons arg args' =>
     match i with
     | O => arg
@@ -160,7 +166,6 @@ Proof.
     reflexivity.
 Qed.
 
-
 (* 对于单个整数表达式，定义其具有“停机”条件，即对于任何输入状态，都能找到一个输出状态 *)
 Definition state_halt (fs: func_list) (e: expr_int): Prop :=
   forall s1, exists res s2, (s1, res, s2) ∈ (eval_expr_int fs e).
@@ -171,7 +176,6 @@ Fixpoint list_state_halt (fs: func_list) (args: list expr_int): Prop :=
   | nil => True
   | cons e args' => state_halt fs e /\ list_state_halt fs args'
   end.
-
 
 (* 对于单个整数表达式，定义其具有“唯一性”条件，即对于任何输入状态，其返回值唯一 *)
 Definition result_unique (fs: func_list) (e: expr_int): Prop :=
@@ -186,7 +190,6 @@ Fixpoint list_result_unique (fs: func_list) (args: list expr_int): Prop :=
   | nil => True
   | cons e args' => result_unique fs e /\ list_result_unique fs args'
   end.
-
 
 (* 证明：计算参数列表的过程不改变程序状态，且总是停机 *)
 Lemma bind_args_unchanged_halt:
@@ -267,37 +270,8 @@ Proof.
     apply bind_args_unchanged_halt; tauto. 
 Qed.
 
-Lemma inline_args_sem:
-  forall i fs args,
-  list_state_unchanged fs args ->
-  list_state_halt fs args ->
-  Sets.equiv
-    (func_sem (eval_expr_func (EFArgs i))
-    (map (eval_expr_int fs) args))
-    (eval_expr_int fs
-    (get_args_inline args i)).
-Proof.
-  intros. unfold eval_expr_func, func_sem.
-  intros. split; revert a a0 a1; intros s1 res s2; intros.
-  + destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
-    destruct H1 as [? ?].
-    pose proof H1 as H10.
-    apply bind_args_unchanged in H1.
-    - rewrite <- H1 in H2. rewrite <- H1 in H10. clear H1.
-      sets_unfold in H2.
-      unfold args_sem in H2.
-      induction args.
-      * unfold get_args_inline, eval_expr_int.
-        unfold map, bind_args, ret in H10.
-        sets_unfold in H10. destruct H10 as [? _].
-        destruct H2 as [? ?]. rewrite <- H3. clear H3.
-        rewrite H1 in H2. clear H1.
-        unfold get_args in H2. unfold const_sem.
-        tauto.
-      * unfold get_args_inline.
-      unfold get_args_inline.
-Admitted.
-
+(* 首先，inline语义中bind_args的状态集非空，在此基础上，我们证明了存在某 list Z 为计算出来的参数列表
+    便于我们后续证明中直接找到那个args0*)
 Lemma inline_exists_args:
   forall fs args s1,
     list_state_unchanged fs args ->
@@ -331,52 +305,22 @@ Proof.
     exists s1, Dargs, res.
     split. tauto. split. tauto. tauto.
 Qed.
-    
-(* Lemma inline_state_unchanged_func:
-  forall fs e args,
-    list_state_unchanged fs args ->
-    list_state_halt fs args ->
-    exists args0, state_unchanged_func args0 e.
-Proof.
-  intros. unfold state_unchanged_func.
-  pose proof (inline_exists_args fs args).
-  specialize (H1 (fun v => 0) H H0). destruct H1 as [args0 H1].
-  clear H1.
-  exists args0. intros.
-  revert H1. revert s1 res s2.
-  induction e; intros s1 res s2; intros.
-  + unfold eval_expr_func, const_sem in H1.
-    sets_unfold in H1. tauto.
-  + unfold eval_expr_func, var_sem in H1.
-    sets_unfold in H1. tauto.
-  + unfold eval_expr_func, args_sem in H1.
-    sets_unfold in H1. tauto.
-  + unfold eval_expr_func in H1. fold eval_expr_func in H1.
-    unfold add_sem in H1. sets_unfold in H1.
-    destruct H1 as [res1 H1]. destruct H1 as [s3 H1].
-    destruct H1 as [? ?].
-    specialize (IHe1 s1 res1 s3 H1).
-    specialize (IHe2 s3 (res-res1) s2 H2).
-    rewrite IHe1. rewrite <- IHe2.
-    tauto.
-  + unfold eval_expr_func in H1. fold eval_expr_func in H1.
-    unfold sub_sem in H1. sets_unfold in H1.
-    destruct H1 as [res1 H1]. destruct H1 as [s3 H1].
-    destruct H1 as [? ?].
-    specialize (IHe1 s1 res1 s3 H1).
-    specialize (IHe2 s3 (res1-res) s2 H2).
-    rewrite IHe1. rewrite <- IHe2.
-    tauto.
-  + unfold eval_expr_func in H1. fold eval_expr_func in H1.
-    unfold mul_sem in H1. sets_unfold in H1.
-    destruct H1 as [res1 H1]. destruct H1 as [s3 H1].
-    destruct H1 as [b H1]. destruct H1 as (? & ? & ?).
-    specialize (IHe1 s1 res1 s3 H2).
-    specialize (IHe2 s3 b s2 H3).
-    rewrite IHe1. rewrite <- IHe2.
-    tauto.
-Qed. *)
 
+(* 一个引理，同样是方便后续进行特化，直接找到对应的与元素arg和列表args1*)
+Lemma args_unempty:
+  forall fs args s1 args0 s2, 
+    (s1, args0, s2) ∈ bind_args (map (eval_expr_int fs) args) ->
+    ~ (args = nil) ->
+    exists arg args1, args0 = arg :: args1.
+Proof.
+  intros.
+  destruct args. tauto.
+  simpl in *. unfold append_arg in H. sets_unfold in H.
+  destruct H as [s3 H]. destruct H as [args1 H]. destruct H as [arg H].
+  destruct H. exists arg, args1. symmetry. tauto.
+Qed.
+
+(* 证明能放在内联函数里的表达式不改变程序状态 *)
 Lemma inline_state_unchanged_func:
   forall args0 e, state_unchanged_func args0 e.
 Proof.
@@ -416,6 +360,7 @@ Proof.
     tauto.
 Qed.
 
+(*  *)
 Lemma inline_state_unchanged_int:
   forall fs args e s1 res s2, 
     list_state_unchanged fs args ->
@@ -458,58 +403,6 @@ Proof.
     rewrite H1, H2. tauto.
 Qed.
 
-(* Lemma eval_expr_int_unique:
-  forall fs e s1 s2 s3 arg0 arg1,
-    (s1, arg0, s2) ∈ eval_expr_int fs e ->
-    (s1, arg1, s3) ∈ eval_expr_int fs e ->
-    arg0 = arg1 /\ s2 = s3.
-Proof.
-  intros.
-  revert H H0. revert arg0 arg1 s1 s2 s3.
-  induction e; intros; simpl in *. 
-  + unfold const_sem in *.
-    sets_unfold in H. sets_unfold in H0.
-    destruct H as [? ?]. destruct H0 as [? ?].
-    rewrite H, H0, <- H1, <- H2. tauto.
-  + unfold const_sem in *.
-    sets_unfold in H. sets_unfold in H0.
-    destruct H as [? ?]. destruct H0 as [? ?].
-    rewrite H, H0, <- H1, <- H2. tauto.
-  + unfold add_sem in *.
-    sets_unfold in H. sets_unfold in H0.
-    destruct H as [res1 H]. destruct H as [s4 H]. destruct H as [? ?].
-    destruct H0 as [res2 H0]. destruct H0 as [s5 H0]. destruct H0 as [? ?].
-    pose proof (IHe1 res1 res2 s1 s4 s5 H H0).
-    destruct H3 as [? ?]. rewrite <- H3, <- H4 in *. clear H3 H4 res2 s5.
-    pose proof (IHe2 (arg0-res1) (arg1-res1) s4 s2 s3 H1 H2).
-    destruct H3 as [? ?]. assert (arg0 = arg1). lia. clear H3.
-    tauto.
-  + unfold sub_sem in *.
-    sets_unfold in H. sets_unfold in H0.
-    destruct H as [res1 H]. destruct H as [s4 H]. destruct H as [? ?].
-    destruct H0 as [res2 H0]. destruct H0 as [s5 H0]. destruct H0 as [? ?].
-    pose proof (IHe1 res1 res2 s1 s4 s5 H H0).
-    destruct H3 as [? ?]. rewrite <- H3, <- H4 in *. clear H3 H4 res2 s5.
-    pose proof (IHe2 (res1-arg0) (res1-arg1) s4 s2 s3 H1 H2).
-    destruct H3 as [? ?]. assert (arg0 = arg1). lia. clear H3.
-    tauto.
-  + unfold mul_sem in *.
-    sets_unfold in H. sets_unfold in H0.
-    destruct H as [res1 H]. destruct H as [s4 H]. 
-    destruct H as [b1 H]. destruct H as (? & ? & ?).
-    destruct H0 as [res2 H0]. destruct H0 as [s5 H0]. 
-    destruct H0 as [b2 H0]. destruct H0 as (? & ? & ?).
-    pose proof (IHe1 res1 res2 s1 s4 s5 H1 H3).
-    destruct H5 as [? ?]. rewrite <- H5, <- H6 in *. clear H5 H6 res2 s5.
-    pose proof (IHe2 b1 b2 s4 s2 s3 H2 H4).
-    destruct H5 as [? ?]. rewrite <- H5, <- H6 in *. clear H5.
-    rewrite <- H, <- H0. tauto.
-  + unfold func_sem in *.
-    sets_unfold in H. sets_unfold in H0.
-    destruct H as [res1 H]. destruct H as [s4 H]. destruct H as [? ?].
-    destruct H0 as [res2 H0]. destruct H0 as [s5 H0]. destruct H0 as [? ?]. *)
-
-
 Lemma bind_args_unique:
   forall fs args s1 s2 s3 args0 args1, 
     list_state_unchanged fs args ->
@@ -545,6 +438,111 @@ Proof.
     unfold result_unique in H0.
     specialize (H0 s1 s1 s1 arg0 arg1 H6 H8). rewrite <- H0 in *. clear H0 arg1.
     specialize (IHargs H5 H7). rewrite IHargs in *. tauto. tauto. tauto.
+Qed.
+  
+Lemma inline_args_sem:
+  forall i fs args,
+  list_state_unchanged fs args ->
+  list_state_halt fs args ->
+  list_result_unique fs args ->
+  Sets.equiv
+    (func_sem (eval_expr_func (EFArgs i))
+    (map (eval_expr_int fs) args))
+    (eval_expr_int fs
+    (get_args_inline args i)).
+Proof.
+  intros. unfold eval_expr_func, func_sem. revert H1. intro H100.
+  intros. split; revert a a0 a1; intros s1 res s2; intros.
+  + destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+    destruct H1 as [? ?].
+    pose proof H1. apply bind_args_unchanged in H3. rewrite <- H3 in *. clear H3 s3.
+
+    revert H1 H2. revert i. revert H H0 H100. revert args args0. revert s1 res s2.
+    induction args; destruct i; simpl in *; intros; 
+    unfold args_sem in H2; sets_unfold in H2. 
+    - destruct args0; simpl in *; unfold const_sem. tauto.
+      unfold ret in H1. sets_unfold in H1. 
+      destruct H1 as [? _].
+      discriminate H1.
+    - unfold ret in H1. sets_unfold in H1.
+      destruct H1 as [? _]. rewrite H1 in *. clear H1 args0.
+      simpl in *. unfold const_sem. tauto.
+    - destruct H. destruct H0.
+      destruct args0. unfold append_arg in H1. 
+      sets_unfold in H1. destruct H1 as [s3 H1]. destruct H1 as [args0 H1].
+      destruct H1 as [arg H1]. destruct H1. discriminate H1.
+      unfold get_args in H2. unfold append_arg in H1.
+      sets_unfold in H1. destruct H1 as [s3 H1]. destruct H1 as [args1 H1].
+      destruct H1 as [arg H1]. destruct H1 as (? & ? & ?).
+      inversion H1.
+      rewrite <- H8, H9 in *. clear H1 H8 H9 z args1.
+      destruct H2. rewrite H1, <- H2 in *. clear H1 H2 res s2.
+      pose proof H6. apply H in H1. rewrite <- H1 in *. clear H1 s3.
+      tauto.
+    - destruct H. destruct H0. destruct H100 as [H100 H101]. destruct H2.
+      rewrite <- H5 in *. clear H5 s2.
+      destruct args0; simpl in *. 
+      unfold append_arg in H1. sets_unfold in H1.
+      destruct H1 as [s3 H1]. destruct H1 as [args1 H1].
+      destruct H1 as [arg H1]. destruct H1. discriminate H1.
+      specialize (IHargs args0 H3 H4 H101 i). clear H4.
+      unfold append_arg in H1. sets_unfold in H1.
+      destruct H1 as [s3 H1]. destruct H1 as [args1 H1].
+      destruct H1 as [arg H1]. destruct H1 as (? & ? & ?).
+      inversion H1. rewrite <- H7, H8 in *. clear H1 H7 H8 z args1.
+      pose proof H4. apply bind_args_unchanged in H1.
+      rewrite H1 in *. clear H1 s3.
+      specialize (IHargs H4).
+      unfold args_sem in IHargs. sets_unfold in IHargs.
+      assert (res = get_args args0 i /\ s1 = s1). tauto.
+      specialize (IHargs H1). tauto. tauto. 
+    - tauto.
+  + revert H1. revert i s1 res s2.
+    induction args; destruct i; intros.
+    - simpl in *. 
+      exists s1, nil. unfold ret. sets_unfold. 
+      unfold args_sem. unfold const_sem in H1. unfold get_args. tauto.
+    - simpl in *. 
+      exists s1, nil. unfold ret. sets_unfold.
+      unfold args_sem. unfold const_sem in H1. unfold get_args. tauto.
+    - simpl in *. 
+      destruct H, H0.
+      pose proof H1. apply H in H4.
+      rewrite <- H4 in *. clear H4 s2.
+      unfold append_arg. sets_unfold.
+      pose proof (inline_exists_args fs args s1 H2 H3).
+      destruct H4 as [args0 H4].
+      exists s1, (res :: args0). split.
+      exists s1, args0, res. tauto.
+      unfold args_sem, get_args. tauto.
+    - pose proof (inline_exists_args fs (a :: args) s1 H H0).
+      destruct H2 as [args0 H2].
+      destruct H, H0. destruct H100 as [H100 H101].
+      unfold append_arg. sets_unfold.
+      specialize (IHargs H3 H4 H101).
+      exists s1, args0.
+      
+      simpl in *. split. tauto.
+      unfold append_arg in H2. sets_unfold in H2.
+      destruct H2 as [s3 H2]. destruct H2 as [args1 H2]. destruct H2 as [arg H2].
+      specialize (IHargs i s1 res s2 H1).
+      destruct IHargs as [s4 IHargs]. destruct IHargs as [args2 IHargs].
+      destruct IHargs. destruct H2 as (? & ? & ?).
+
+      pose proof H5. apply bind_args_unchanged in H9. 
+      rewrite <- H9 in *. clear H9 s4.
+      pose proof H7. apply bind_args_unchanged in H9.
+      rewrite H9 in *. clear H9 s3.
+      pose proof (inline_state_unchanged_func args2 (EFArgs i)).
+      unfold state_unchanged_func, eval_expr_func in H9.
+      specialize (H9 s1 res s2 H6).
+      rewrite <- H9 in *. clear H9 s2.
+
+      pose proof (bind_args_unique fs args s1 s1 s1 args1 args2 H3 H101 H7 H5).
+      rewrite <- H9 in *. clear H9 args2.
+      rewrite <- H2 in *. clear H2 args0.
+      unfold args_sem. split; simpl in *.
+      apply H6. tauto. tauto. tauto.
 Qed.
 
 Definition inline_sem_2 (Binop: expr_func -> expr_func -> expr_func): Prop :=
